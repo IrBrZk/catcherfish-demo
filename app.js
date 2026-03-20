@@ -10,6 +10,8 @@ const P=[
   {id:8,cat:'gas',name:'Плитка газовая М-100 (оранжевая)',price:760,old:1400,img:'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300&h=300&fit=crop',stock:298,badge:'Склад ЧЛБ',bc:'bl'},
   {id:9,cat:'gas',name:'Горелка с дерев. ручкой NS06',price:960,old:1700,img:'https://images.unsplash.com/photo-1510672981848-a1c4f1cb5ccf?w=300&h=300&fit=crop',stock:118,badge:'Склад ЧЛБ',bc:'bl'},
   {id:10,cat:'gas',name:'Горелка газовая мини NS 100',price:280,old:480,img:'https://images.unsplash.com/photo-1561640289-53c6e11f4c83?w=300&h=300&fit=crop',stock:479,badge:'Склад ЧЛБ',bc:'bl'},
+  {id:11,cat:'tent',name:'Палатка кемпинговая Catcher 4P',price:8200,old:9800,img:'https://images.unsplash.com/photo-1423655156442-ccc11daa4e99?w=300&h=300&fit=crop',stock:38,badge:'Новинка'},
+  {id:12,cat:'tent',name:'Туристическая палатка Shelter Pro 2',price:4600,old:5600,img:'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=300&h=300&fit=crop&auto=format',stock:64,badge:'Новый'},
 ];
 
 // ── STATE ─────────────────────────────────────────────────────────────────
@@ -33,6 +35,14 @@ let syncLog=[
 ];
 
 const fmt=n=>n.toLocaleString('ru-RU')+' ₽';
+
+const catalogSections=[
+  {key:'fish',title:'🎣 Рыболовные товары',cats:['fishing','lure']},
+  {key:'tent',title:'⛺ Туристическое',cats:['tent']},
+  {key:'gas',title:'⛽ Газовое снаряжение — со склада в Челябинске',cats:['gas']},
+  {key:'boat',title:'🚣 Лодки',cats:['boat']},
+];
+const catTitles={all:'Все товары',fishing:'Рыболовные',lure:'Рыболовные',tent:'Туристическое',gas:'Газовое',boat:'Лодки'};
 
 // ── PAGES ─────────────────────────────────────────────────────────────────
 function showPage(name){
@@ -78,35 +88,42 @@ document.addEventListener('click',e=>{
 // ── CATALOG ───────────────────────────────────────────────────────────────
 function filterCat(cat){
   curCat=cat;
-  const lbl={all:'Все товары',fishing:'Рыболовные',gas:'Газовое снаряжение',lure:'Блёсны и снасти',boat:'Лодки'};
-  document.getElementById('ct').textContent=lbl[cat]||'Все товары';
-  document.getElementById('bc').textContent=lbl[cat]||'Все товары';
+  const lbl=catTitles[cat]||'Все товары';
+  document.getElementById('ct').textContent=lbl;
+  document.getElementById('bc').textContent=lbl;
   renderCatalog();
 }
 function doSearch(v){curSearch=v;renderCatalog();}
 function doSort(v){curSort=v;renderCatalog();}
 function renderCatalog(){
-  let list=P.filter(p=>{
-    const cok=curCat==='all'||p.cat===curCat;
-    const sok=!curSearch||p.name.toLowerCase().includes(curSearch.toLowerCase());
-    return cok&&sok;
-  });
-  if(curSort==='asc') list.sort((a,b)=>a.price-b.price);
-  else if(curSort==='desc') list.sort((a,b)=>b.price-a.price);
-  else if(curSort==='name') list.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
-  const fish=list.filter(p=>p.cat!=='gas'), gas=list.filter(p=>p.cat==='gas');
-  renderGrid('gf',fish); renderGrid('gg',gas);
-  document.getElementById('sf').style.display=fish.length?'':'none';
-  document.getElementById('sg').style.display=gas.length?'':'none';
+  const container=document.getElementById('catalog-sections');
+  if(!container) return;
+  const q=curSearch.trim().toLowerCase();
+  const sections=catalogSections.map(section=>{
+    if(curCat!=='all' && !section.cats.includes(curCat)) return '';
+    const items=P.filter(p=>section.cats.includes(p.cat) && (!q || p.name.toLowerCase().includes(q)));
+    if(!items.length) return '';
+    const sorted=sortProducts(items);
+    return `<div class="sec-t"><h2>${section.title}</h2></div>${buildGridMarkup(sorted)}`;
+  }).filter(Boolean);
+  container.innerHTML=sections.length ? sections.join('') : '<div class="pgrid"><div style="grid-column:1/-1;padding:20px;color:var(--muted);text-align:center">Нет товаров</div></div>';
 }
-function renderGrid(id,items){
-  const g=document.getElementById(id);
-  if(!items.length){g.innerHTML='<div style="grid-column:1/-1;padding:20px;color:var(--muted);text-align:center">Нет товаров</div>';return;}
-  g.innerHTML=items.map(p=>{
-    const ic=cart.find(c=>c.id===p.id);
-    const disc=Math.round((1-p.price/p.old)*100);
-    const stk=p.stock<20?`<div class="pstk-lo">⚠ Осталось ${p.stock} шт</div>`:`<div class="pstk-ok">✓ В наличии: ${p.stock} шт</div>`;
-    return`<div class="pcard">
+function sortProducts(list){
+  const arr=list.slice();
+  if(curSort==='asc') arr.sort((a,b)=>a.price-b.price);
+  else if(curSort==='desc') arr.sort((a,b)=>b.price-a.price);
+  else if(curSort==='name') arr.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+  return arr;
+}
+function buildGridMarkup(items){
+  if(!items.length) return '<div class="pgrid"><div style="grid-column:1/-1;padding:20px;color:var(--muted);text-align:center">Нет товаров</div></div>';
+  return `<div class="pgrid">${items.map(buildProductCard).join('')}</div>`;
+}
+function buildProductCard(p){
+  const ic=cart.find(c=>c.id===p.id);
+  const disc=Math.round((1-p.price/p.old)*100);
+  const stk=p.stock<20?`<div class="pstk-lo">⚠ Осталось ${p.stock} шт</div>`:`<div class="pstk-ok">✓ В наличии: ${p.stock} шт</div>`;
+  return `<div class="pcard">
       ${p.badge?`<div class="pbadge ${p.bc||'or'}">${p.badge}</div>`:''}
       <div class="pimg"><img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.src='https://catcherfish.ru/image/cache/catalog/gruzila_cheburashki_razbornye-300x300.jpg'"></div>
       <div class="pi">
@@ -119,7 +136,6 @@ function renderGrid(id,items){
         </div>
       </div>
     </div>`;
-  }).join('');
 }
 
 // ── CART ──────────────────────────────────────────────────────────────────
@@ -436,7 +452,7 @@ function renderAdmin(tab){
     ${P.map(p=>`<tr>
       <td><img src="${p.img}" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--border);border-radius:3px" onerror="this.style.display='none'"></td>
       <td><div class="bold" style="font-size:13px">${p.name}</div></td>
-      <td style="font-size:12px;color:var(--muted)">${{fishing:'Рыболовные',gas:'Газовое',lure:'Снасти',boat:'Лодки'}[p.cat]}</td>
+      <td style="font-size:12px;color:var(--muted)">${{fishing:'Рыболовные',gas:'Газовое',lure:'Снасти',boat:'Лодки',tent:'Туризм'}[p.cat]}</td>
       <td class="bold">${fmt(p.price)}</td>
       <td style="font-weight:700;color:${p.stock<20?'var(--red)':p.stock<100?'var(--yellow)':'var(--green)'}">${p.stock}</td>
       <td><span class="stbadge st-send">✓ Опубликован</span></td>
