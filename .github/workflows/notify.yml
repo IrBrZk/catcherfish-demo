@@ -1,0 +1,16 @@
+name: Deploy & Notify
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram notification
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+          -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -d parse_mode="HTML" \
+          -d text="✅ <b>CatcherFish обновлён!</b>%0A%0A🔗 <a href='https://irbrzk.github.io/catcherfish-demo/'>Открыть сайт</a>%0A%0A📦 Коммит: <code>${{ github.event.head_commit.message }}</code>%0A👤 Автор: ${{ github.event.head_commit.author.name }}"
