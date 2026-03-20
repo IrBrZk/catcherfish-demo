@@ -545,7 +545,7 @@
   }
 
   async function fetchWeather(lat, lon) {
-    const url = `https://green-recipe-d8fd.irina-suwarov.workers.dev/weather?lat=${lat}&lon=${lon}&units=metric&appid=${WEATHER_API_KEY}`;
+    const url = `https://green-recipe-d8fd.irina-suwarov.workers.dev/weather?lat=${lat}&lon=${lon}`;
     const resp = await fetch(url);
     const data = await resp.json();
     const pressureMm = Math.round((data.main.pressure || 1013) * 0.75006);
