@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CatcherFish — Товары для рыбалки</title>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blue:#2a6496;--blue2:#1e4d73;--blue3:#153a57;
+  --orange:#e67e22;--orange2:#d35400;
+  --green:#27ae60;--green2:#1e8449;
+  --red:#c0392b;--yellow:#f39c12;--purple:#8e44ad;
+  --border:#ddd;--bg:#f5f5f5;--white:#fff;--text:#333;--muted:#777;
+  --radius:4px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Open Sans',sans-serif;font-size:14px;color:var(--text);background:var(--bg);line-height:1.6;overflow-x:hidden}
+a{color:var(--blue);text-decoration:none}
+button{cursor:pointer;font-family:'Open Sans',sans-serif}
+img{max-width:100%;display:block}
+input,select,textarea{font-family:'Open Sans',sans-serif}
+.hidden{display:none!important}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--blue3);color:rgba(255,255,255,.8);font-size:12px;padding:5px 0}
+.topbar-inner{max-width:1280px;margin:0 auto;padding:0 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.topbar-right a{color:rgba(255,255,255,.7);margin-left:10px;font-size:12px;transition:color .15s}
+.topbar-right a:hover{color:#fff}
+.online-dot{display:inline-block;width:6px;height:6px;background:#2ecc71;border-radius:50%;margin-right:3px;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── HEADER ── */
+.header{background:var(--white);border-bottom:3px solid var(--blue);padding:10px 0;box-shadow:0 2px 6px rgba(0,0,0,.07)}
+.header-inner{max-width:1280px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:16px}
+.logo img{height:46px;width:auto}
+.logo-txt{font-size:20px;font-weight:700;color:var(--blue);display:none}
+.logo-txt span{color:var(--orange)}
+.search-form{flex:1;display:flex;max-width:500px}
+.search-form input{flex:1;border:2px solid var(--blue);border-right:none;border-radius:4px 0 0 4px;padding:8px 12px;font-size:14px;outline:none}
+.search-form input:focus{border-color:var(--orange)}
+.search-form button{background:var(--blue);border:none;border-radius:0 4px 4px 0;padding:8px 14px;color:#fff;font-size:13px;font-weight:600;white-space:nowrap;transition:background .15s}
+.search-form button:hover{background:var(--orange)}
+.header-phone{text-align:right;line-height:1.5;flex-shrink:0}
+.header-phone strong{font-size:16px;color:var(--text);display:block}
+.header-phone span{font-size:11px;color:var(--muted)}
+.hcart{display:flex;flex-direction:column;align-items:center;padding:7px 14px;border:2px solid var(--border);border-radius:4px;cursor:pointer;transition:all .15s;min-width:80px;flex-shrink:0;background:var(--white)}
+.hcart:hover{border-color:var(--orange);background:#fffbf7}
+.hcart .ico{font-size:20px;line-height:1}
+.hcart .lbl{font-size:10px;color:var(--muted)}
+.hcart .sm{font-size:12px;font-weight:700;color:var(--blue)}
+.hadmin{display:flex;align-items:center;gap:6px;padding:7px 12px;background:var(--blue);border:none;border-radius:4px;color:#fff;font-size:12px;font-weight:600;transition:background .15s;flex-shrink:0}
+.hadmin:hover{background:var(--orange)}
+
+/* ── MOBILE NAV ── */
+.mob-nav{display:none;background:var(--blue);padding:0}
+.mob-nav-inner{display:flex;align-items:center;justify-content:space-between;padding:0 8px}
+.mob-nav-btn{background:none;border:none;color:#fff;padding:11px 10px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mob-nav-btn.active{background:var(--orange)}
+.mob-cart-btn{background:var(--orange2);border:none;color:#fff;padding:11px 14px;font-size:13px;font-weight:700;cursor:pointer}
+
+/* ── DESKTOP NAV ── */
+.mainnav{background:var(--blue);position:sticky;top:0;z-index:50;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.mainnav-inner{max-width:1280px;margin:0 auto;display:flex;align-items:stretch;flex-wrap:wrap}
+.mni{color:rgba(255,255,255,.9);padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;border:none;background:none;white-space:nowrap}
+.mni:hover,.mni.act{background:var(--orange);color:#fff}
+.mni-sep{flex:1}
+.mni-cart{background:var(--orange2);color:#fff;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:background .15s}
+.mni-cart:hover{background:var(--orange)}
+.mni-admin{background:var(--blue2);color:rgba(255,255,255,.8);padding:10px 14px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:background .15s;display:flex;align-items:center;gap:5px}
+.mni-admin:hover{background:var(--purple);color:#fff}
+
+/* ── PAGES ── */
+.page{display:none}
+.page.active{display:block}
+
+/* ── BREADCRUMB ── */
+.breadcrumb{background:var(--white);border-bottom:1px solid var(--border);padding:7px 0;font-size:12px}
+.bc-i{max-width:1280px;margin:0 auto;padding:0 16px;color:var(--muted)}
+.bc-i a{color:var(--blue)}
+
+/* ── LAYOUT ── */
+.layout{max-width:1280px;margin:0 auto;padding:16px;display:grid;grid-template-columns:220px 1fr;gap:20px}
+.layout.full{grid-template-columns:1fr}
+.layout.admin-layout{grid-template-columns:220px 1fr;min-height:calc(100vh - 120px)}
+
+/* ── SIDEBAR ── */
+.sb-box{background:var(--white);border:1px solid var(--border);border-radius:4px;margin-bottom:14px;overflow:hidden}
+.sb-t{background:var(--blue);color:#fff;padding:9px 14px;font-size:13px;font-weight:700}
+.sb-cats a{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid #f2f2f2;font-size:13px;color:var(--text);transition:background .15s}
+.sb-cats a:last-child{border-bottom:none}
+.sb-cats a:hover{background:#f5f9ff;text-decoration:none}
+.sb-cats a.act{background:#e8f4fd;color:var(--blue);font-weight:600;border-left:3px solid var(--blue)}
+.sb-cats a img{width:28px;height:28px;object-fit:cover;border-radius:3px;flex-shrink:0}
+.cat-n{margin-left:auto;background:var(--bg);border-radius:10px;padding:1px 7px;font-size:11px;color:var(--muted)}
+.promo-sb{background:linear-gradient(135deg,#1a4a73,#2a6496);color:#fff;padding:14px;border-radius:4px;margin-bottom:14px;font-size:13px;line-height:1.7}
+.promo-sb strong{display:block;font-size:14px;margin-bottom:5px;color:#ffe}
+.promo-sb a{color:#adf;text-decoration:underline}
+.info-sb{padding:12px 14px;font-size:13px;line-height:1.9;color:var(--muted)}
+.info-sb a{color:var(--blue)}
+
+/* ── CONTENT HEADER ── */
+.c-head{background:var(--white);border:1px solid var(--border);border-radius:4px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.c-head h1{font-size:18px;font-weight:700}
+.sort-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.sort-row select{border:1px solid var(--border);border-radius:3px;padding:5px 8px;font-size:13px}
+
+/* ── PRODUCTS GRID ── */
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.pcard{background:var(--white);border:1px solid var(--border);border-radius:4px;overflow:hidden;transition:box-shadow .2s,border-color .2s;position:relative}
+.pcard:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);border-color:#bbb}
+.pbadge{position:absolute;top:8px;left:0;color:#fff;font-size:10px;font-weight:700;padding:2px 9px 2px 7px;border-radius:0 3px 3px 0;z-index:2;text-transform:uppercase}
+.pbadge.or{background:var(--orange)}
+.pbadge.gr{background:var(--green)}
+.pbadge.rd{background:var(--red)}
+.pbadge.bl{background:var(--blue)}
+.pimg{background:#f9f9f9;border-bottom:1px solid #f0f0f0;height:180px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+.pimg img{max-height:170px;max-width:90%;object-fit:contain;transition:transform .25s}
+.pcard:hover .pimg img{transform:scale(1.05)}
+.pi{padding:12px}
+.pn{font-size:13px;font-weight:600;line-height:1.4;margin-bottom:7px;min-height:34px;cursor:pointer}
+.pn:hover{color:var(--blue)}
+.pp-row{display:flex;align-items:baseline;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+.pp{font-size:17px;font-weight:700;color:var(--orange2)}
+.pold{font-size:11px;color:var(--muted);text-decoration:line-through}
+.pdisc{font-size:11px;font-weight:700;color:var(--red)}
+.pstk-ok{font-size:11px;color:var(--green);font-weight:600;margin-bottom:8px}
+.pstk-lo{font-size:11px;color:var(--red);font-weight:600;margin-bottom:8px}
+.pa{display:flex;gap:6px}
+.btn-buy{flex:1;background:var(--orange);border:none;border-radius:3px;padding:8px 4px;color:#fff;font-size:12px;font-weight:700;transition:background .15s}
+.btn-buy:hover{background:var(--orange2)}
+.btn-buy.ic{background:var(--green)}
+.btn-buy.ic:hover{background:var(--green2)}
+.btn-fav{width:34px;background:var(--bg);border:1px solid var(--border);border-radius:3px;font-size:14px;color:var(--muted);transition:all .15s}
+.btn-fav:hover{border-color:var(--red);color:var(--red)}
+.sec-t{background:var(--white);border:1px solid var(--border);border-radius:4px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--orange)}
+.sec-t h2{font-size:15px;font-weight:700;color:var(--blue)}
+
+/* ── INFO PAGES ── */
+.info-page{max-width:1280px;margin:0 auto;padding:16px;display:grid;grid-template-columns:220px 1fr;gap:20px}
+.info-c{background:var(--white);border:1px solid var(--border);border-radius:4px;padding:24px 28px}
+.info-c h1{font-size:20px;font-weight:700;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid var(--blue)}
+.info-c h2{font-size:15px;font-weight:700;color:var(--blue);margin:18px 0 10px}
+.info-c h3{font-size:14px;font-weight:700;margin:12px 0 5px}
+.info-c p{margin-bottom:10px;line-height:1.8}
+.info-c ul,.info-c ol{margin:6px 0 12px 18px;line-height:1.9}
+.ibox{border:1px solid var(--border);border-radius:4px;padding:14px 16px;margin:12px 0;background:#f9f9f9}
+.ibox.bl{background:#e8f4fd;border-color:#aed6f1}
+.ibox.or{background:#fef9e7;border-color:#f9ca7a}
+.ibox.gr{background:#eafaf1;border-color:#a9dfbf}
+.del-tbl{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+.del-tbl th{background:var(--blue);color:#fff;padding:9px 12px;text-align:left;font-weight:600}
+.del-tbl td{padding:9px 12px;border-bottom:1px solid var(--border)}
+.del-tbl tr:nth-child(even) td{background:#f9f9f9}
+.pay-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.pay-card{background:var(--white);border:1px solid var(--border);border-radius:4px;padding:14px;text-align:center}
+.pay-card .pico{font-size:24px;margin-bottom:6px}
+.pay-card h4{font-size:12px;font-weight:700;margin-bottom:3px}
+.pay-card p{font-size:11px;color:var(--muted)}
+.contacts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.contact-card{background:var(--white);border:1px solid var(--border);border-radius:4px;padding:16px}
+.contact-card h3{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:10px}
+.contact-card p{font-size:13px;line-height:2}
+.map-wrap{background:#e8f4fd;border:1px solid #aed6f1;border-radius:4px;height:280px;display:flex;align-items:center;justify-content:center;margin:12px 0;position:relative;overflow:hidden}
+.map-wrap::before{content:'';position:absolute;inset:0;background:url('https://static-maps.yandex.ru/1.x/?ll=37.335168,55.823792&z=16&l=map&size=700,280&pt=37.335168,55.823792,pm2rdl') center/cover no-repeat;opacity:.85}
+.map-card{position:relative;z-index:1;background:rgba(255,255,255,.93);padding:12px 18px;border-radius:4px;text-align:center;border:1px solid var(--border)}
+.map-card strong{display:block;font-size:14px;color:var(--blue);margin-bottom:3px}
+.map-card span{font-size:12px;color:var(--muted)}
+.map-card a{display:inline-block;margin-top:8px;background:var(--blue);color:#fff;padding:5px 14px;border-radius:3px;font-size:12px;font-weight:600}
+.map-card a:hover{background:var(--orange)}
+.cf-wrap{background:var(--bg);border-radius:4px;padding:18px;margin-top:16px;border:1px solid var(--border)}
+.cf-wrap h3{font-size:14px;font-weight:700;color:var(--blue);margin-bottom:14px}
+.fg{margin-bottom:11px}
+.fg label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.fg input,.fg select,.fg textarea{width:100%;border:1px solid var(--border);border-radius:3px;padding:8px 11px;font-size:13px;outline:none;transition:border-color .2s;color:var(--text)}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--blue)}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.wh-card{background:linear-gradient(135deg,#e8f4fd,#d6eaf8);border:1px solid #aed6f1;border-radius:4px;padding:16px;margin:12px 0;display:flex;gap:14px}
+.wh-ico{font-size:32px;flex-shrink:0}
+.wh-i h3{font-size:14px;font-weight:700;color:var(--blue);margin-bottom:5px}
+.wh-i p{font-size:13px;line-height:1.8}
+.pay-icons{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.pay-icons img{height:22px;opacity:.7}
+
+/* ── CART SLIDE ── */
+.cart-ov{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;justify-content:flex-end}
+.cart-ov.open{display:flex}
+.cart-panel{background:var(--white);width:400px;max-width:100vw;height:100vh;display:flex;flex-direction:column;box-shadow:-6px 0 24px rgba(0,0,0,.15)}
+.cp-h{background:var(--blue);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.cp-h h3{font-size:15px;font-weight:700}
+.cp-x{background:none;border:none;color:#fff;font-size:22px;opacity:.8;transition:opacity .15s}
+.cp-x:hover{opacity:1}
+.cp-b{flex:1;padding:14px 18px;overflow-y:auto}
+.cp-empty{text-align:center;padding:50px 0;color:var(--muted)}
+.ci{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid #f0f0f0}
+.ci:last-child{border-bottom:none}
+.ci-img{width:54px;height:54px;object-fit:contain;border:1px solid var(--border);border-radius:3px;flex-shrink:0;background:#fafafa}
+.ci-inf{flex:1}
+.ci-n{font-size:12px;font-weight:600;margin-bottom:4px;line-height:1.3}
+.ci-qr{display:flex;align-items:center;gap:6px;margin-top:4px}
+.cqb{width:25px;height:25px;border:1px solid var(--border);background:var(--bg);border-radius:3px;font-size:14px;font-weight:700;transition:all .15s}
+.cqb:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.ci-u{font-size:11px;color:var(--muted)}
+.ci-d{font-size:11px;color:var(--muted);background:none;border:none;margin-top:3px;display:block;transition:color .15s}
+.ci-d:hover{color:var(--red)}
+.ci-tot{font-size:14px;font-weight:700;color:var(--orange2);white-space:nowrap;align-self:center}
+.cp-f{background:#f9f9f9;border-top:2px solid var(--border);padding:14px 18px;flex-shrink:0}
+.cf-r{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
+.cf-tot{font-size:17px;font-weight:700;color:var(--orange2);border-top:2px solid var(--border);margin-top:7px;padding-top:9px;display:flex;justify-content:space-between}
+.btn-co{width:100%;background:var(--orange);border:none;border-radius:4px;padding:12px;color:#fff;font-size:14px;font-weight:700;margin-top:10px;transition:background .15s}
+.btn-co:hover{background:var(--orange2)}
+.btn-cont{width:100%;background:var(--white);border:1px solid var(--border);border-radius:4px;padding:8px;font-size:13px;margin-top:7px;transition:background .15s}
+.btn-cont:hover{background:var(--bg)}
+
+/* ── ORDER MODAL ── */
+.mod-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.mod-ov.open{display:flex}
+.modal{background:var(--white);border-radius:6px;max-width:520px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.mod-h{background:var(--blue);color:#fff;padding:14px 20px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center}
+.mod-h h3{font-size:15px;font-weight:700}
+.mod-x{background:none;border:none;color:#fff;font-size:20px;opacity:.8}
+.mod-x:hover{opacity:1}
+.mod-b{padding:20px}
+.fsec{font-size:12px;font-weight:700;color:var(--blue);border-bottom:2px solid var(--blue);padding-bottom:5px;margin:14px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+.fsec:first-child{margin-top:0}
+.del-opts{display:flex;flex-direction:column;gap:7px}
+.dopt{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--border);border-radius:3px;cursor:pointer;transition:all .15s}
+.dopt:hover,.dopt.sel{border-color:var(--blue);background:#e8f4fd}
+.dopt input[type=radio]{accent-color:var(--blue)}
+.dp{margin-left:auto;font-weight:700;color:var(--orange2);font-size:13px}
+.ord-s{background:#f9f9f9;border:1px solid var(--border);border-radius:3px;padding:12px;margin:12px 0}
+.os-r{display:flex;justify-content:space-between;padding:3px 0;font-size:13px;border-bottom:1px solid #eee}
+.os-r:last-child{border-bottom:none}
+.os-tot{font-size:16px;font-weight:700;color:var(--orange2);border-top:2px solid var(--border);margin-top:7px;padding-top:9px;display:flex;justify-content:space-between}
+.btn-pl{width:100%;background:var(--green);border:none;border-radius:4px;padding:13px;color:#fff;font-size:14px;font-weight:700;transition:background .15s}
+.btn-pl:hover{background:var(--green2)}
+.tnote{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
+.tnote a{color:var(--blue)}
+
+/* ── SUCCESS ── */
+.succ-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:400;display:none;align-items:center;justify-content:center;padding:20px}
+.succ-ov.open{display:flex}
+.succ-box{background:var(--white);border-radius:6px;max-width:420px;width:100%;padding:36px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.s-ico{font-size:58px;margin-bottom:14px}
+.succ-box h2{font-size:20px;font-weight:700;color:var(--green);margin-bottom:9px}
+.succ-box p{color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.7}
+.s-num{font-size:20px;font-weight:700;color:var(--orange2);margin-bottom:18px}
+.s-btns{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}
+.s-btns button{background:var(--blue);border:none;border-radius:4px;padding:9px 20px;color:#fff;font-size:13px;font-weight:700;transition:background .15s}
+.s-btns button:hover{background:var(--blue2)}
+.s-btns button.sec{background:var(--white);border:1px solid var(--border);color:var(--text)}
+
+/* ════════════════════════════════════
+   ADMIN PANEL
+════════════════════════════════════ */
+.admin-sidebar{background:var(--blue3);min-height:100%}
+.adm-brand{padding:16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.adm-brand-ico{width:36px;height:36px;background:var(--orange);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.adm-brand span{font-size:13px;font-weight:700;color:#fff;line-height:1.3}
+.adm-brand small{font-size:11px;color:rgba(255,255,255,.5);display:block}
+.adm-section-label{padding:12px 14px 6px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4)}
+.adm-nav a{display:flex;align-items:center;gap:9px;padding:9px 14px;font-size:13px;color:rgba(255,255,255,.7);cursor:pointer;transition:all .15s;border-left:3px solid transparent}
+.adm-nav a:hover{background:rgba(255,255,255,.08);color:#fff}
+.adm-nav a.act{background:rgba(255,255,255,.12);color:#fff;border-left-color:var(--orange)}
+.adm-nav a .badge{margin-left:auto;background:var(--orange);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px}
+.adm-nav a .badge.gr{background:var(--green)}
+.adm-nav a .badge.rd{background:var(--red)}
+.adm-content{padding:20px;overflow:auto;background:var(--bg)}
+.adm-content h2{font-size:18px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.adm-content h2 .sub{font-size:13px;font-weight:400;color:var(--muted);margin-left:4px}
+
+/* metrics */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric{background:var(--white);border:1px solid var(--border);border-radius:6px;padding:16px}
+.metric .mv{font-size:22px;font-weight:700;margin-bottom:3px}
+.metric .ml{font-size:12px;color:var(--muted)}
+.metric .md{font-size:11px;margin-top:4px;font-weight:600}
+.metric .md.up{color:var(--green)}
+.metric .md.dn{color:var(--red)}
+.metric .md.nu{color:var(--muted)}
+
+/* tables */
+.adm-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:16px}
+.adm-table-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.adm-table-head h3{font-size:14px;font-weight:700}
+.adm-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.adm-tbl th{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);background:#fafafa}
+.adm-tbl td{padding:11px 14px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+.adm-tbl tr:last-child td{border-bottom:none}
+.adm-tbl tr:hover td{background:#fafafa}
+.adm-tbl .mono{font-family:monospace;font-weight:700;color:var(--orange2)}
+.adm-tbl .bold{font-weight:700}
+
+/* badges */
+.stbadge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.st-new{background:#e8f4fd;color:#1a5276}
+.st-proc{background:#fef9e7;color:#7d6608}
+.st-send{background:#eafaf1;color:#1e8449}
+.st-done{background:#f0f0f0;color:#555}
+.st-low{background:#fdf2f8;color:#922b21}
+.client-t{display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600}
+.ct-ret{background:#e8f4fd;color:var(--blue)}
+.ct-whl{background:#fef9e7;color:#7d6608}
+
+/* sync */
+.sync-status{display:flex;align-items:center;gap:6px;font-size:13px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+.sync-dot.off{background:var(--red);animation:none}
+.adm-btn{background:var(--blue);border:none;border-radius:4px;padding:7px 14px;color:#fff;font-size:12px;font-weight:600;transition:background .15s;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.adm-btn:hover{background:var(--orange)}
+.adm-btn.gr{background:var(--green)}
+.adm-btn.gr:hover{background:var(--green2)}
+.adm-btn.or{background:var(--orange);font-size:13px;padding:9px 18px}
+.adm-btn.or:hover{background:var(--orange2)}
+.adm-btn.sm{padding:4px 10px;font-size:11px}
+
+/* insales / moysklad panels */
+.integration-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.intg-card{background:var(--white);border:1px solid var(--border);border-radius:6px;padding:16px}
+.intg-card h3{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.intg-logo{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
+.intg-logo.ins{background:#2a6496}
+.intg-logo.ms{background:#27ae60}
+.intg-logo.yk{background:#e67e22}
+.intg-stat{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.8}
+.intg-stat strong{color:var(--text)}
+.sync-row{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+
+/* product editor */
+.prod-editor{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stock-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-top:4px}
+.stock-fill{height:100%;border-radius:3px;background:var(--green);transition:width .5s}
+.stock-fill.low{background:var(--red)}
+.stock-fill.mid{background:var(--yellow)}
+
+/* analytics chart area */
+.chart-area{background:var(--white);border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:16px}
+.chart-area h3{font-size:14px;font-weight:700;margin-bottom:14px}
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:120px;padding-bottom:20px;position:relative}
+.bar-chart::after{content:'';position:absolute;bottom:20px;left:0;right:0;height:1px;background:var(--border)}
+.bar-col{display:flex;flex-direction:column;align-items:center;flex:1;gap:4px}
+.bar{width:100%;background:var(--blue);border-radius:3px 3px 0 0;transition:height .5s;position:relative;cursor:pointer}
+.bar:hover{background:var(--orange)}
+.bar-lbl{font-size:10px;color:var(--muted);white-space:nowrap}
+.bar-val{font-size:10px;font-weight:700;color:var(--text);position:absolute;top:-18px;width:100%;text-align:center}
+
+/* channel pills */
+.channel-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.ch-pill{background:var(--white);border:1px solid var(--border);border-radius:4px;padding:10px 14px;flex:1;min-width:130px}
+.ch-pill .ch-name{font-size:12px;color:var(--muted);margin-bottom:4px}
+.ch-pill .ch-val{font-size:16px;font-weight:700}
+.ch-pill .ch-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* ── FOOTER ── */
+.footer{background:var(--blue3);color:rgba(255,255,255,.75);margin-top:24px;padding:24px 0 14px}
+.footer-inner{max-width:1280px;margin:0 auto;padding:0 16px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:24px;margin-bottom:18px}
+.footer h4{color:#fff;font-size:12px;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:7px}
+.footer ul{list-style:none}
+.footer ul li{margin-bottom:5px}
+.footer ul li a{color:rgba(255,255,255,.6);font-size:12px;transition:color .15s}
+.footer ul li a:hover{color:#fff;text-decoration:none}
+.footer-brand p{font-size:12px;line-height:1.8;margin-bottom:10px}
+.footer-copy{border-top:1px solid rgba(255,255,255,.1);padding-top:12px;text-align:center;font-size:11px;color:rgba(255,255,255,.3);max-width:1280px;margin:0 auto;padding-left:16px;padding-right:16px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:16px;background:#323232;color:#fff;border-radius:4px;padding:11px 16px;font-size:13px;font-weight:500;z-index:1000;animation:tin .25s ease;max-width:280px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.toast.ok{background:var(--green)}
+.toast.er{background:var(--red)}
+@keyframes tin{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ════════════════════════════════════
+   RESPONSIVE / MOBILE
+════════════════════════════════════ */
+@media(max-width:900px){
+  .topbar{display:none}
+  .header-phone{display:none}
+  .mainnav{display:none}
+  .mob-nav{display:block}
+  .layout,.info-page{grid-template-columns:1fr}
+  .layout > aside,.info-page > aside{display:none}
+  .pgrid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .contacts-grid,.pay-cards,.integration-row,.prod-editor{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .footer-inner{grid-template-columns:1fr 1fr}
+  .info-c{padding:16px}
+  .admin-sidebar{display:none}
+  .layout.admin-layout{grid-template-columns:1fr}
+  .adm-content{padding:12px}
+  .adm-table-wrap{overflow-x:auto}
+}
+@media(max-width:520px){
+  .header-inner{gap:10px}
+  .search-form{display:none}
+  .logo img{height:38px}
+  .hcart .lbl,.hcart .sm{display:none}
+  .hcart{min-width:44px;padding:7px 10px}
+  .hadmin{font-size:11px;padding:7px 8px}
+  .pgrid{grid-template-columns:1fr 1fr;gap:8px}
+  .pimg{height:140px}
+  .pi{padding:9px}
+  .pn{font-size:12px;min-height:30px}
+  .pp{font-size:15px}
+  .metrics{grid-template-columns:1fr 1fr}
+  .footer-inner{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <span><span class="online-dot"></span>Ежедневно 10:00–20:00 · Красногорск, Пионерская 1</span>
+    <div class="topbar-right">
+      <a href="#" onclick="showPage('delivery');return false">Доставка</a>
+      <a href="#" onclick="showPage('payment');return false">Оплата</a>
+      <a href="#" onclick="showPage('contacts');return false">Контакты</a>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <img src="https://catcherfish.ru/image/catalog/logo/logo.png" alt="CatcherFish"
+           onerror="this.style.display='none';document.querySelector('.logo-txt').style.display='block'">
+      <div class="logo-txt">🎣 Catcher<span>Fish</span></div>
+    </div>
+    <div class="search-form">
+      <input type="text" placeholder="Поиск товаров..." id="srch" oninput="doSearch(this.value)">
+      <button>🔍 Найти</button>
+    </div>
+    <div class="header-phone">
+      <strong>+7 (903) 616-39-35</strong>
+      <span>zakaz@catcherfish.ru</span>
+    </div>
+    <div class="hcart" onclick="openCart()">
+      <span class="ico">🛒</span>
+      <span class="lbl">Корзина</span>
+      <span class="sm" id="hcs">0 ₽</span>
+    </div>
+    <button class="hadmin" onclick="showPage('admin')">⚙ Админ</button>
+  </div>
+</div>
+
+<!-- MOBILE NAV -->
+<div class="mob-nav">
+  <div class="mob-nav-inner">
+    <button class="mob-nav-btn active" onclick="showPage('catalog');setMobActive(this)">☰ Каталог</button>
+    <button class="mob-nav-btn" onclick="filterCat('gas');showPage('catalog');setMobActive(this)">⛽ Газ</button>
+    <button class="mob-nav-btn" onclick="showPage('delivery');setMobActive(this)">🚚</button>
+    <button class="mob-nav-btn" onclick="showPage('contacts');setMobActive(this)">📞</button>
+    <button class="mob-nav-btn" onclick="showPage('admin');setMobActive(this)">⚙</button>
+    <button class="mob-cart-btn" onclick="openCart()">🛒 <span id="mnc">0</span></button>
+  </div>
+</div>
+
+<!-- DESKTOP NAV -->
+<div class="mainnav">
+  <div class="mainnav-inner">
+    <button class="mni act" id="nav-cat" onclick="showPage('catalog')">☰ Каталог</button>
+    <button class="mni" onclick="filterCat('fishing');showPage('catalog')">🎣 Рыболовные</button>
+    <button class="mni" onclick="filterCat('gas');showPage('catalog')">⛽ Газовое</button>
+    <button class="mni" onclick="filterCat('lure');showPage('catalog')">🪝 Снасти</button>
+    <button class="mni" onclick="filterCat('boat');showPage('catalog')">🚣 Лодки</button>
+    <button class="mni" onclick="showPage('delivery')">🚚 Доставка</button>
+    <button class="mni" onclick="showPage('payment')">💳 Оплата</button>
+    <button class="mni" onclick="showPage('contacts')">📞 Контакты</button>
+    <div class="mni-sep"></div>
+    <button class="mni-cart" onclick="openCart()">🛒 (<span id="nc">0</span>)</button>
+    <button class="mni-admin" onclick="showPage('admin')">⚙ МойСклад / InSales</button>
+  </div>
+</div>
+
+<!-- ══ PAGE: CATALOG ══ -->
+<div class="page active" id="page-catalog">
+  <div class="breadcrumb"><div class="bc-i"><a href="#" onclick="showPage('catalog');return false">Главная</a> › <span id="bc">Все товары</span></div></div>
+  <div class="layout">
+    <aside>
+      <div class="sb-box">
+        <div class="sb-t">Каталог</div>
+        <div class="sb-cats" id="sbcats">
+          <a href="#" class="act" onclick="filterCat('all');return false"><img src="https://catcherfish.ru/image/cache/catalog/gruzila_cheburashki_razbornye-28x28.jpg" alt="">Все товары<span class="cat-n">10</span></a>
+          <a href="#" onclick="filterCat('fishing');return false"><img src="https://catcherfish.ru/image/cache/catalog/gruzila_cheburashki_razbornye-28x28.jpg" alt="">Рыболовные<span class="cat-n">5</span></a>
+          <a href="#" onclick="filterCat('gas');return false"><img src="https://catcherfish.ru/image/cache/catalog/furnitura_Catcher-28x28.jpg" alt="">Газовое<span class="cat-n">5</span></a>
+          <a href="#" onclick="filterCat('lure');return false"><img src="https://catcherfish.ru/image/cache/catalog/koleblyushiesya_blesny_Catcher-28x28.jpg" alt="">Блёсны/снасти<span class="cat-n">2</span></a>
+          <a href="#" onclick="filterCat('boat');return false"><img src="https://catcherfish.ru/image/cache/catalog/grebnajalodka-28x28.jpg" alt="">Лодки<span class="cat-n">2</span></a>
+        </div>
+      </div>
+      <div class="promo-sb"><strong>🔥 Опт от 10 шт</strong>Газовые горелки со склада в Челябинске.<br><a href="#" onclick="showPage('contacts');return false">Запросить прайс →</a></div>
+      <div class="sb-box"><div class="sb-t">Контакты</div><div class="info-sb">📍 Красногорск, Пионерская 1<br>📞 <a href="tel:89036163935">+7 (903) 616-39-35</a><br>✉ <a href="mailto:zakaz@catcherfish.ru">zakaz@catcherfish.ru</a><br><span style="color:var(--green);font-weight:600">● Ежедн. 10–20</span></div></div>
+    </aside>
+    <main>
+      <div class="c-head"><h1 id="ct">Все товары</h1><div class="sort-row">Сортировка: <select onchange="doSort(this.value)"><option value="def">По умолчанию</option><option value="asc">Цена ↑</option><option value="desc">Цена ↓</option><option value="name">По названию</option></select></div></div>
+      <div id="sf" class="sec-t"><h2>🎣 Рыболовные товары</h2></div>
+      <div class="pgrid" id="gf"></div>
+      <div id="sg" class="sec-t"><h2>⛽ Газовое снаряжение — со склада в Челябинске</h2></div>
+      <div class="pgrid" id="gg"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ══ PAGE: DELIVERY ══ -->
+<div class="page" id="page-delivery">
+  <div class="breadcrumb"><div class="bc-i"><a href="#" onclick="showPage('catalog');return false">Главная</a> › Доставка</div></div>
+  <div class="info-page">
+    <aside><div class="sb-box"><div class="sb-t">Меню</div><div class="sb-cats"><a href="#" onclick="showPage('catalog');return false">⬅ Каталог</a><a href="#" onclick="showPage('payment');return false">💳 Оплата</a><a href="#" onclick="showPage('contacts');return false">📞 Контакты</a></div></div></aside>
+    <div class="info-c">
+      <h1>🚚 Доставка</h1>
+      <div class="ibox bl"><strong>Работаем с двух складов:</strong><br>📍 <strong>Красногорск</strong> — рыболовные товары (основной)<br>📍 <strong>Челябинск</strong> — газовые горелки, плитки, палатки</div>
+      <h2>🏙 Доставка по Москве и МО</h2>
+      <table class="del-tbl"><thead><tr><th>Зона</th><th>Условие</th><th>Стоимость</th><th>Срок</th></tr></thead><tbody>
+        <tr><td>В пределах МКАД</td><td>Заказ до 5 000 ₽</td><td><strong>500 ₽</strong></td><td>48 ч (10:00–21:00)</td></tr>
+        <tr><td>В пределах МКАД</td><td>Заказ от 5 000 ₽</td><td><strong style="color:var(--green)">Бесплатно</strong></td><td>48 ч</td></tr>
+        <tr><td>За МКАД</td><td>Мин. сумма 5 000 ₽</td><td>По договорённости</td><td>По договорённости</td></tr>
+        <tr><td>Выходные дни</td><td>Доп. опция</td><td><strong>+300 ₽</strong></td><td>По записи</td></tr>
+      </tbody></table>
+      <h2>🚀 Доставка по России</h2>
+      <div class="ibox or"><strong>⚡ Горелки из Челябинска</strong> — дешевле и быстрее для Урала, Сибири, Поволжья.</div>
+      <table class="del-tbl"><thead><tr><th>Компания</th><th>Тип</th><th>Срок</th><th>Примечание</th></tr></thead><tbody>
+        <tr><td>🚛 СДЭК</td><td>До двери / ПВЗ</td><td>2–7 дн</td><td>Авторасчёт в корзине</td></tr>
+        <tr><td>📦 Деловые Линии</td><td>До склада / двери</td><td>3–8 дн</td><td>Крупногабарит (лодки, палатки)</td></tr>
+        <tr><td>🏢 ПЭК</td><td>До склада</td><td>3–9 дн</td><td>Оптовые отправки</td></tr>
+        <tr><td>📮 Почта РФ / EMS</td><td>До отделения</td><td>7–21 дн</td><td>Удалённые регионы</td></tr>
+      </tbody></table>
+      <h2>🏭 Самовывоз</h2>
+      <div class="contacts-grid">
+        <div class="contact-card"><h3>📍 Красногорск</h3><p>ул. Пионерская, 1<br><strong>Пн–Вс: 10:00–20:00</strong><br>Без ограничений по сумме.<br><a href="tel:89036163935">+7 (903) 616-39-35</a></p></div>
+        <div class="contact-card"><h3>📍 Челябинск (склад)</h3><p>Адрес уточняется при заказе<br><strong>По предварительному звонку</strong><br>Только газовое снаряжение.<br>Оптовые отгрузки от 10 шт.</p></div>
+      </div>
+      <div class="ibox gr"><strong>💡 Совет:</strong> при заказе горелок от 50 шт из Челябинска доставка СДЭК до Москвы ~800–1 200 ₽ за всю партию.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: PAYMENT ══ -->
+<div class="page" id="page-payment">
+  <div class="breadcrumb"><div class="bc-i"><a href="#" onclick="showPage('catalog');return false">Главная</a> › Оплата</div></div>
+  <div class="info-page">
+    <aside><div class="sb-box"><div class="sb-t">Меню</div><div class="sb-cats"><a href="#" onclick="showPage('catalog');return false">⬅ Каталог</a><a href="#" onclick="showPage('delivery');return false">🚚 Доставка</a><a href="#" onclick="showPage('contacts');return false">📞 Контакты</a></div></div></aside>
+    <div class="info-c">
+      <h1>💳 Оплата</h1>
+      <div class="pay-cards">
+        <div class="pay-card"><div class="pico">💳</div><h4>Картой онлайн</h4><p>Visa, MC, Мир через ЮKassa</p></div>
+        <div class="pay-card"><div class="pico">📱</div><h4>Яндекс Пэй / SberPay</h4><p>Быстрая оплата через ЮKassa</p></div>
+        <div class="pay-card"><div class="pico">💵</div><h4>Наличными</h4><p>При получении или самовывозе</p></div>
+        <div class="pay-card"><div class="pico">🏦</div><h4>Перевод на карту</h4><p>После подтверждения заказа</p></div>
+        <div class="pay-card"><div class="pico">🧾</div><h4>По счёту (юрлица)</h4><p>Счёт, УПД, накладные. НДС — по запросу.</p></div>
+        <div class="pay-card"><div class="pico">🔁</div><h4>Постоплата (опт)</h4><p>Отсрочка 7–14 дн. для постоянных клиентов</p></div>
+      </div>
+      <div class="ibox bl">Онлайн-оплата через <strong>ЮKassa</strong>. PCI DSS. Автоматические чеки по <strong>54-ФЗ</strong>.</div>
+      <div class="pay-icons">
+        <img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/visa-50x30.png" alt="Visa" onerror="this.style.display='none'">
+        <img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/master-50x30.png" alt="MC" onerror="this.style.display='none'">
+        <img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/maestro-50x30.png" alt="Maestro" onerror="this.style.display='none'">
+        <img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/sberbank-50x30.png" alt="Сбер" onerror="this.style.display='none'">
+        <img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/alfa-50x30.png" alt="Альфа" onerror="this.style.display='none'">
+      </div>
+      <h2>🔄 Возврат и обмен</h2>
+      <ul><li>Возврат надлежащего качества — в течение <strong>14 дней</strong></li><li>Товар сохранил товарный вид и упаковку</li><li>Возврат средств — 10 рабочих дней</li><li>Ненадлежащее качество — по гарантии производителя</li></ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: CONTACTS ══ -->
+<div class="page" id="page-contacts">
+  <div class="breadcrumb"><div class="bc-i"><a href="#" onclick="showPage('catalog');return false">Главная</a> › Контакты</div></div>
+  <div class="info-page">
+    <aside><div class="sb-box"><div class="sb-t">Меню</div><div class="sb-cats"><a href="#" onclick="showPage('catalog');return false">⬅ Каталог</a><a href="#" onclick="showPage('delivery');return false">🚚 Доставка</a><a href="#" onclick="showPage('payment');return false">💳 Оплата</a></div></div><div class="sb-box"><div class="sb-t">График работы</div><div class="info-sb">Пн–Вс: <strong>10:00–20:00</strong><br><span style="color:var(--green);font-weight:600"><span class="online-dot"></span> Открыто</span></div></div></aside>
+    <div class="info-c">
+      <h1>📞 Контакты</h1>
+      <div class="contacts-grid">
+        <div class="contact-card"><h3>📞 Телефон и мессенджеры</h3><p><a href="tel:89036163935">+7 (903) 616-39-35</a><br>WhatsApp: <a href="https://wa.me/79036163935">+7 (903) 616-39-35</a><br>Telegram: <a href="#">@catcherfish</a><br><span style="font-size:11px;color:var(--muted)">Ежедн. 10:00–20:00</span></p></div>
+        <div class="contact-card"><h3>✉ Email</h3><p>Заказы: <a href="mailto:zakaz@catcherfish.ru">zakaz@catcherfish.ru</a><br>Опт: <a href="mailto:zakaz@catcherfish.ru">zakaz@catcherfish.ru</a><br><span style="font-size:11px;color:var(--muted)">Ответ в течение 2 часов</span></p></div>
+      </div>
+      <h2>📍 Наши точки</h2>
+      <div class="wh-card"><div class="wh-ico">🏪</div><div class="wh-i"><h3>Магазин — Красногорск</h3><p>г. Красногорск, ул. Пионерская, 1<br>Ежедн. <strong>10:00–20:00</strong>. Розница + самовывоз. Снасти, фурнитура, лодки.</p></div></div>
+      <div class="wh-card" style="background:linear-gradient(135deg,#fef9e7,#fdf2d0);border-color:#f9ca7a"><div class="wh-ico">🏭</div><div class="wh-i"><h3>Склад — Челябинск</h3><p>Адрес уточняется при заказе. <strong>По звонку.</strong><br>Горелки, плитки, палатки. Оптом от 10 шт. Отгрузка в день обращения.</p></div></div>
+      <h2>🗺 Схема проезда</h2>
+      <div class="map-wrap"><div class="map-card"><strong>📍 Красногорск, ул. Пионерская, 1</strong><span>Остановка «Пионерская»</span><br><a href="https://yandex.ru/maps/?text=Красногорск+Пионерская+1" target="_blank">Открыть в Яндекс.Картах →</a></div></div>
+      <h2>✉ Форма обратной связи</h2>
+      <div class="cf-wrap">
+        <h3>Ответим в течение 2 часов</h3>
+        <div class="fg-row"><div class="fg"><label>Имя</label><input id="cfn" placeholder="Иван Петров"></div><div class="fg"><label>Телефон / Email</label><input id="cfc" placeholder="+7 900 000-00-00"></div></div>
+        <div class="fg"><label>Тема</label><select id="cft"><option>Вопрос по заказу</option><option>Оптовое сотрудничество</option><option>Газовое снаряжение (Челябинск)</option><option>Доставка</option><option>Другое</option></select></div>
+        <div class="fg"><label>Сообщение</label><textarea id="cfm" rows="3" placeholder="Ваш вопрос..."></textarea></div>
+        <button class="adm-btn or" onclick="sendCF()">Отправить сообщение</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: ADMIN ══ -->
+<div class="page" id="page-admin">
+  <div class="layout admin-layout" style="padding-top:0;padding-bottom:0;gap:0;max-width:100%;margin:0">
+    <div class="admin-sidebar">
+      <div class="adm-brand">
+        <div class="adm-brand-ico">⚙</div>
+        <div><span>CatcherFish Admin</span><small>InSales + МойСклад</small></div>
+      </div>
+      <div class="adm-section-label">Магазин (InSales)</div>
+      <div class="adm-nav">
+        <a class="act" onclick="admTab('dashboard',this)"><span>📊</span> Дашборд <span class="badge gr" id="b-orders">0</span></a>
+        <a onclick="admTab('orders',this)"><span>📋</span> Заказы <span class="badge" id="b-new">0</span></a>
+        <a onclick="admTab('catalog_adm',this)"><span>🛍</span> Каталог InSales</a>
+        <a onclick="admTab('clients',this)"><span>👥</span> Клиенты</a>
+      </div>
+      <div class="adm-section-label">Склад (МойСклад)</div>
+      <div class="adm-nav">
+        <a onclick="admTab('stock',this)"><span>📦</span> Остатки <span class="badge rd" id="b-low">2</span></a>
+        <a onclick="admTab('sync',this)"><span>🔄</span> Синхронизация</a>
+        <a onclick="admTab('analytics',this)"><span>📈</span> Аналитика</a>
+      </div>
+      <div class="adm-section-label">Интеграции</div>
+      <div class="adm-nav">
+        <a onclick="admTab('integrations',this)"><span>🔗</span> InSales ↔ МойСклад</a>
+        <a onclick="admTab('ykassa',this)"><span>💳</span> ЮKassa</a>
+        <a onclick="admTab('telegram',this)"><span>✈</span> Telegram-канал</a>
+      </div>
+      <div style="padding:14px">
+        <button class="adm-btn" style="width:100%;justify-content:center" onclick="showPage('catalog')">⬅ На сайт</button>
+      </div>
+    </div>
+    <div class="adm-content" id="adm-content"></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-inner">
+    <div><div class="footer-brand"><strong style="font-size:16px;color:#fff">🎣 CatcherFish</strong><p>Товары для рыбалки оптом и в розницу с 2010 года. Газовое снаряжение со склада в Челябинске.</p></div><div class="pay-icons"><img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/visa-50x30.png" alt="" onerror="this.style.display='none'"><img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/master-50x30.png" alt="" onerror="this.style.display='none'"><img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/sberbank-50x30.png" alt="" onerror="this.style.display='none'"></div></div>
+    <div><h4>Покупателям</h4><ul><li><a href="#" onclick="showPage('delivery');return false">Доставка</a></li><li><a href="#" onclick="showPage('payment');return false">Оплата</a></li><li><a href="#" onclick="showPage('contacts');return false">Контакты</a></li><li><a href="#">Политика конфиденциальности</a></li></ul></div>
+    <div><h4>Каталог</h4><ul><li><a href="#" onclick="filterCat('fishing');showPage('catalog');return false">Грузила</a></li><li><a href="#" onclick="filterCat('lure');showPage('catalog');return false">Блёсны</a></li><li><a href="#" onclick="filterCat('boat');showPage('catalog');return false">Лодки</a></li><li><a href="#" onclick="filterCat('gas');showPage('catalog');return false">Горелки</a></li></ul></div>
+    <div><h4>Контакты</h4><ul><li><a href="tel:89036163935">+7 (903) 616-39-35</a></li><li><a href="mailto:zakaz@catcherfish.ru">zakaz@catcherfish.ru</a></li><li>Красногорск, Пионерская 1</li><li>Склад: Челябинск</li></ul></div>
+  </div>
+  <div class="footer-copy">© CatcherFish 2010–2025 · Все права защищены · <a href="#" style="color:rgba(255,255,255,.3)">Политика ПД</a></div>
+</div>
+
+<!-- CART -->
+<div class="cart-ov" id="cart-ov" onclick="covClick(event)">
+  <div class="cart-panel">
+    <div class="cp-h"><h3>🛒 Корзина</h3><button class="cp-x" onclick="closeCart()">✕</button></div>
+    <div class="cp-b" id="cpb"></div>
+    <div id="cpf"></div>
+  </div>
+</div>
+
+<!-- ORDER MODAL -->
+<div class="mod-ov" id="mod-ov" onclick="movClick(event)">
+  <div class="modal">
+    <div class="mod-h"><h3>📦 Оформление заказа</h3><button class="mod-x" onclick="closeMod()">✕</button></div>
+    <div class="mod-b">
+      <div class="fsec">Контактные данные</div>
+      <div class="fg-row"><div class="fg"><label>Имя *</label><input id="fn" placeholder="Иван Петров"></div><div class="fg"><label>Телефон *</label><input id="fph" placeholder="+7 900 000-00-00" type="tel"></div></div>
+      <div class="fg"><label>Email</label><input id="fem" placeholder="ivan@mail.ru" type="email"></div>
+      <div class="fsec">Доставка</div>
+      <div class="del-opts" id="dopts">
+        <label class="dopt sel" onclick="selD(this,350)"><input type="radio" name="dl" checked>🚚 СДЭК до двери <span class="dp">350 ₽</span></label>
+        <label class="dopt" onclick="selD(this,180)"><input type="radio" name="dl">📦 СДЭК ПВЗ <span class="dp">180 ₽</span></label>
+        <label class="dopt" onclick="selD(this,0)"><input type="radio" name="dl">🏭 Самовывоз <span class="dp">Бесплатно</span></label>
+        <label class="dopt" onclick="selD(this,0)"><input type="radio" name="dl">🚛 Деловые Линии <span class="dp">По запросу</span></label>
+      </div>
+      <div class="fg" style="margin-top:9px"><label>Адрес</label><input id="fadr" placeholder="Город, улица, дом"></div>
+      <div class="fsec">Оплата</div>
+      <div class="fg"><select id="fpay"><option>💳 Картой онлайн (ЮKassa)</option><option>📱 Яндекс Пэй / SberPay</option><option>💵 Наличными при получении</option><option>🏦 По счёту (юрлицам / ИП)</option><option>🔁 Постоплата</option></select></div>
+      <div class="fg"><label>Комментарий</label><textarea id="fcmt" rows="2" placeholder="Уточнения..."></textarea></div>
+      <div id="ords"></div>
+      <button class="btn-pl" onclick="placeOrder()">✓ Оформить заказ</button>
+      <p class="tnote">Нажимая «Оформить», вы соглашаетесь с <a href="#">условиями обработки ПД</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS -->
+<div class="succ-ov" id="succ-ov">
+  <div class="succ-box">
+    <div class="s-ico">✅</div>
+    <h2>Заказ принят!</h2>
+    <p>Свяжемся в течение 30 минут. Трек-номер СДЭК придёт на email.</p>
+    <div class="s-num" id="snum"></div>
+    <div class="s-btns">
+      <button onclick="document.getElementById('succ-ov').classList.remove('open');showPage('catalog')">В каталог</button>
+      <button class="sec" onclick="document.getElementById('succ-ov').classList.remove('open');showPage('admin')">Смотреть в МойСклад</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── PRODUCTS ──────────────────────────────────────────────────────────────
+const P=[
+  {id:1,cat:'fishing',name:'Грузила чебурашки разборные (10 шт)',price:185,old:240,img:'https://catcherfish.ru/image/cache/catalog/gruzila_cheburashki_razbornye-300x300.jpg',stock:847,badge:'Хит',bc:'or'},
+  {id:2,cat:'fishing',name:'Грузила для отводного поводка (15 шт)',price:210,old:280,img:'https://catcherfish.ru/image/cache/catalog/gruzila_dlya_otvodnogo_povodka-300x300.jpg',stock:623,badge:'Хит',bc:'or'},
+  {id:3,cat:'lure',name:'Блесна колебалка Catcher 7г (5 шт)',price:320,old:450,img:'https://catcherfish.ru/image/cache/catalog/koleblyushiesya_blesny_Catcher-300x300.jpg',stock:312,badge:null},
+  {id:4,cat:'fishing',name:'Фурнитура: вертлюги + карабины (50 шт)',price:140,old:190,img:'https://catcherfish.ru/image/cache/catalog/furnitura_Catcher-300x300.jpg',stock:1240,badge:null},
+  {id:5,cat:'boat',name:'Лодка гребная ЛГН-2 двухместная',price:8900,old:12500,img:'https://catcherfish.ru/image/cache/catalog/grebnajalodka-300x300.jpg',stock:14,badge:'Мало',bc:'rd'},
+  {id:6,cat:'gas',name:'Горелка газовая мини NS 509',price:280,old:520,img:'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop',stock:490,badge:'Склад ЧЛБ',bc:'bl'},
+  {id:7,cat:'gas',name:'Горелка газовая NS 502',price:400,old:750,img:'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=300&h=300&fit=crop',stock:500,badge:'Склад ЧЛБ',bc:'bl'},
+  {id:8,cat:'gas',name:'Плитка газовая М-100 (оранжевая)',price:760,old:1400,img:'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300&h=300&fit=crop',stock:298,badge:'Склад ЧЛБ',bc:'bl'},
+  {id:9,cat:'gas',name:'Горелка с дерев. ручкой NS06',price:960,old:1700,img:'https://images.unsplash.com/photo-1510672981848-a1c4f1cb5ccf?w=300&h=300&fit=crop',stock:118,badge:'Склад ЧЛБ',bc:'bl'},
+  {id:10,cat:'gas',name:'Горелка газовая мини NS 100',price:280,old:480,img:'https://images.unsplash.com/photo-1561640289-53c6e11f4c83?w=300&h=300&fit=crop',stock:479,badge:'Склад ЧЛБ',bc:'bl'},
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let cart=[],delCost=350,orderN=0,curCat='all',curSearch='',curSort='def';
+// Pre-seeded data
+let orders=[
+  {id:'CF-0001',name:'Анатолий С.',phone:'+7 912 000-11-22',items:[{name:'Горелка NS 509',qty:10,price:280},{name:'Плитка М-100',qty:5,price:760}],sub:6600,del:0,total:6600,pay:'По счёту (юрлицам / ИП)',status:'proc',date:'19.03 09:14',src:'Telegram'},
+  {id:'CF-0002',name:'Иван Рыбаков',phone:'+7 901 555-44-33',items:[{name:'Грузила чебурашки',qty:3,price:185}],sub:555,del:180,total:735,pay:'Картой онлайн',status:'send',date:'18.03 16:42',src:'Вкладыш'},
+  {id:'CF-0003',name:'Марина К.',phone:'+7 916 222-33-44',items:[{name:'Блесна колебалка',qty:2,price:320}],sub:640,del:350,total:990,pay:'Картой онлайн',status:'done',date:'17.03 11:20',src:'SEO'},
+];
+let clients=[
+  {name:'Анатолий С.',phone:'+7 912 000-11-22',orders:3,total:47800,last:'19.03',type:'whl'},
+  {name:'Иван Рыбаков',phone:'+7 901 555-44-33',orders:1,total:735,last:'18.03',type:'ret'},
+  {name:'Марина К.',phone:'+7 916 222-33-44',orders:1,total:990,last:'17.03',type:'ret'},
+];
+let syncLog=[
+  {time:'19.03 12:01',event:'Остатки синхронизированы',status:'ok'},
+  {time:'19.03 11:31',event:'Цены обновлены (10 товаров)',status:'ok'},
+  {time:'19.03 10:00',event:'Заказ CF-0001 передан в МойСклад',status:'ok'},
+  {time:'18.03 18:45',event:'Новый клиент добавлен',status:'ok'},
+];
+
+const fmt=n=>n.toLocaleString('ru-RU')+' ₽';
+
+// ── PAGES ─────────────────────────────────────────────────────────────────
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.mni').forEach(b=>b.classList.remove('act'));
+  if(name==='catalog') document.getElementById('nav-cat')?.classList.add('act');
+  if(name==='admin') renderAdmin('dashboard');
+  window.scrollTo(0,0);
+}
+function setMobActive(el){document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');}
+
+// ── CATALOG ───────────────────────────────────────────────────────────────
+function filterCat(cat){
+  curCat=cat;
+  const lbl={all:'Все товары',fishing:'Рыболовные',gas:'Газовое снаряжение',lure:'Блёсны и снасти',boat:'Лодки'};
+  document.getElementById('ct').textContent=lbl[cat]||'Все товары';
+  document.getElementById('bc').textContent=lbl[cat]||'Все товары';
+  renderCatalog();
+}
+function doSearch(v){curSearch=v;renderCatalog();}
+function doSort(v){curSort=v;renderCatalog();}
+function renderCatalog(){
+  let list=P.filter(p=>{
+    const cok=curCat==='all'||p.cat===curCat;
+    const sok=!curSearch||p.name.toLowerCase().includes(curSearch.toLowerCase());
+    return cok&&sok;
+  });
+  if(curSort==='asc') list.sort((a,b)=>a.price-b.price);
+  else if(curSort==='desc') list.sort((a,b)=>b.price-a.price);
+  else if(curSort==='name') list.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+  const fish=list.filter(p=>p.cat!=='gas'), gas=list.filter(p=>p.cat==='gas');
+  renderGrid('gf',fish); renderGrid('gg',gas);
+  document.getElementById('sf').style.display=fish.length?'':'none';
+  document.getElementById('sg').style.display=gas.length?'':'none';
+}
+function renderGrid(id,items){
+  const g=document.getElementById(id);
+  if(!items.length){g.innerHTML='<div style="grid-column:1/-1;padding:20px;color:var(--muted);text-align:center">Нет товаров</div>';return;}
+  g.innerHTML=items.map(p=>{
+    const ic=cart.find(c=>c.id===p.id);
+    const disc=Math.round((1-p.price/p.old)*100);
+    const stk=p.stock<20?`<div class="pstk-lo">⚠ Осталось ${p.stock} шт</div>`:`<div class="pstk-ok">✓ В наличии: ${p.stock} шт</div>`;
+    return`<div class="pcard">
+      ${p.badge?`<div class="pbadge ${p.bc||'or'}">${p.badge}</div>`:''}
+      <div class="pimg"><img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.src='https://catcherfish.ru/image/cache/catalog/gruzila_cheburashki_razbornye-300x300.jpg'"></div>
+      <div class="pi">
+        <div class="pn">${p.name}</div>
+        <div class="pp-row"><span class="pp">${fmt(p.price)}</span><span class="pold">${fmt(p.old)}</span><span class="pdisc">−${disc}%</span></div>
+        ${stk}
+        <div class="pa">
+          <button class="btn-buy${ic?' ic':''}" id="bb-${p.id}" onclick="addCart(${p.id})">${ic?'✓ В корзине':'🛒 В корзину'}</button>
+          <button class="btn-fav">♡</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── CART ──────────────────────────────────────────────────────────────────
+function addCart(id){
+  const p=P.find(x=>x.id===id); const ex=cart.find(c=>c.id===id);
+  if(ex) ex.qty++; else cart.push({...p,qty:1});
+  updCart(); toast(`${p.name.slice(0,26)}… → корзина`); renderCatalog();
+}
+function updCart(){
+  const cnt=cart.reduce((s,c)=>s+c.qty,0), sum=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  document.getElementById('hcs').textContent=fmt(sum);
+  ['nc','mnc'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=cnt;});
+  const bel=document.getElementById('b-orders');if(bel)bel.textContent=orders.length;
+}
+function openCart(){document.getElementById('cart-ov').classList.add('open');renderCart();}
+function closeCart(){document.getElementById('cart-ov').classList.remove('open');}
+function covClick(e){if(e.target===document.getElementById('cart-ov'))closeCart();}
+function renderCart(){
+  const body=document.getElementById('cpb'), foot=document.getElementById('cpf');
+  if(!cart.length){
+    body.innerHTML='<div class="cp-empty"><div style="font-size:48px;opacity:.2;margin-bottom:12px">🛒</div><p>Корзина пуста</p></div>';
+    foot.innerHTML='<div style="padding:14px 18px"><button class="btn-cont" onclick="closeCart()">Перейти в каталог</button></div>';return;
+  }
+  const sub=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  body.innerHTML=cart.map(c=>`<div class="ci">
+    <img class="ci-img" src="${c.img}" onerror="this.src='https://catcherfish.ru/image/cache/catalog/gruzila_cheburashki_razbornye-300x300.jpg'">
+    <div class="ci-inf">
+      <div class="ci-n">${c.name}</div>
+      <div class="ci-qr"><button class="cqb" onclick="chQ(${c.id},-1)">−</button><span style="min-width:20px;text-align:center;font-weight:700">${c.qty}</span><button class="cqb" onclick="chQ(${c.id},1)">+</button><span class="ci-u">${fmt(c.price)}/шт</span></div>
+      <button class="ci-d" onclick="remCart(${c.id})">✕ Удалить</button>
+    </div>
+    <div class="ci-tot">${fmt(c.price*c.qty)}</div>
+  </div>`).join('');
+  foot.innerHTML=`<div class="cp-f">
+    <div class="cf-r"><span>Товары (${cart.reduce((s,c)=>s+c.qty,0)} шт)</span><span>${fmt(sub)}</span></div>
+    <div class="cf-tot"><span>Итого</span><span>${fmt(sub)}</span></div>
+    <button class="btn-co" onclick="openOrder()">Оформить заказ →</button>
+    <button class="btn-cont" onclick="closeCart()">Продолжить покупки</button>
+  </div>`;
+}
+function chQ(id,d){const i=cart.find(c=>c.id===id);if(!i)return;i.qty+=d;if(i.qty<=0)cart=cart.filter(c=>c.id!==id);updCart();renderCart();renderCatalog();}
+function remCart(id){cart=cart.filter(c=>c.id!==id);updCart();renderCart();renderCatalog();}
+
+// ── ORDER ─────────────────────────────────────────────────────────────────
+function openOrder(){closeCart();updOrds();document.getElementById('mod-ov').classList.add('open');}
+function closeMod(){document.getElementById('mod-ov').classList.remove('open');}
+function movClick(e){if(e.target===document.getElementById('mod-ov'))closeMod();}
+function selD(el,cost){document.querySelectorAll('.dopt').forEach(o=>o.classList.remove('sel'));el.classList.add('sel');delCost=cost;updOrds();}
+function updOrds(){
+  const sub=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  document.getElementById('ords').innerHTML=`<div class="ord-s">
+    <div class="os-r"><span>Товары</span><span>${fmt(sub)}</span></div>
+    <div class="os-r"><span>Доставка</span><span>${delCost?fmt(delCost):'Бесплатно'}</span></div>
+    <div class="os-tot"><span>К оплате</span><span>${fmt(sub+delCost)}</span></div>
+  </div>`;
+}
+function placeOrder(){
+  const n=document.getElementById('fn').value.trim(), ph=document.getElementById('fph').value.trim();
+  if(!n||!ph){toast('Введите имя и телефон',false);return;}
+  if(!cart.length){toast('Корзина пуста',false);return;}
+  orderN++;
+  const sub=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  const num='CF-'+String(orderN+3).padStart(4,'0');
+  const order={id:num,name:n,phone:ph,items:cart.map(c=>({name:c.name,qty:c.qty,price:c.price})),sub,del:delCost,total:sub+delCost,pay:document.getElementById('fpay').value,status:'new',date:new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),src:'Прямой'};
+  orders.unshift(order);
+  cart.forEach(c=>{const p=P.find(x=>x.id===c.id);if(p)p.stock=Math.max(0,p.stock-c.qty);});
+  // add client
+  const exc=clients.find(c=>c.phone===ph);
+  if(exc){exc.orders++;exc.total+=order.total;exc.last=order.date;}
+  else clients.push({name:n,phone:ph,orders:1,total:order.total,last:order.date,type:'ret'});
+  syncLog.unshift({time:order.date,event:`Заказ ${num} создан и передан в МойСклад`,status:'ok'});
+  cart=[];updCart();renderCatalog();closeMod();
+  document.getElementById('snum').textContent='#'+num;
+  document.getElementById('succ-ov').classList.add('open');
+  const bel=document.getElementById('b-new');if(bel){const newc=orders.filter(o=>o.status==='new').length;bel.textContent=newc||'';bel.style.display=newc?'':'none';}
+}
+
+// ── CONTACT FORM ──────────────────────────────────────────────────────────
+function sendCF(){
+  if(!document.getElementById('cfn').value.trim()||!document.getElementById('cfc').value.trim()){toast('Заполните имя и контакт',false);return;}
+  toast('Сообщение отправлено! Ответим в течение 2 часов.');
+  ['cfn','cfc','cfm'].forEach(id=>document.getElementById(id).value='');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────
+function toast(msg,ok=true){
+  const t=document.createElement('div');t.className='toast'+(ok?' ok':' er');t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),2700);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ADMIN PANEL RENDERER
+// ══════════════════════════════════════════════════════════════════════════
+let admCur='dashboard';
+function admTab(tab,el){
+  admCur=tab;
+  document.querySelectorAll('.adm-nav a').forEach(a=>a.classList.remove('act'));
+  if(el) el.classList.add('act');
+  renderAdmin(tab);
+}
+function renderAdmin(tab){
+  admCur=tab||admCur;
+  const el=document.getElementById('adm-content');
+  const totalRev=orders.reduce((s,o)=>s+o.total,0);
+  const totalOrds=orders.length;
+  const newOrds=orders.filter(o=>o.status==='new').length;
+
+  if(admCur==='dashboard'){
+    const gasRev=orders.reduce((s,o)=>s+o.items.filter(i=>i.name.includes('горел')||i.name.includes('плитк')||i.name.includes('Горел')||i.name.includes('Плитк')).reduce((ss,i)=>ss+i.price*i.qty,0),0);
+    el.innerHTML=`<h2>📊 Дашборд <span class="sub">catcherfish.ru · Март 2026</span></h2>
+    <div class="metrics">
+      <div class="metric"><div class="mv" style="color:var(--orange2)">${fmt(totalRev)}</div><div class="ml">Выручка (все заказы)</div><div class="md up">↑ +${totalOrds} заказов</div></div>
+      <div class="metric"><div class="mv">${totalOrds}</div><div class="ml">Заказов всего</div><div class="md ${newOrds?'up':'nu'}">${newOrds} новых</div></div>
+      <div class="metric"><div class="mv">${totalOrds?fmt(Math.round(totalRev/totalOrds)):0}</div><div class="ml">Средний чек</div><div class="md nu">InSales метрика</div></div>
+      <div class="metric"><div class="mv">${clients.length}</div><div class="ml">Клиентов в базе</div><div class="md up">↑ +${clients.filter(c=>c.type==='whl').length} оптовых</div></div>
+    </div>
+    <div class="chart-area"><h3>📈 Выручка по каналам (симуляция)</h3>
+      <div class="channel-row">
+        <div class="ch-pill"><div class="ch-name">🎣 Telegram</div><div class="ch-val">${fmt(Math.round(totalRev*.40))}</div><div class="ch-sub">40% · конв. 3.2%</div></div>
+        <div class="ch-pill"><div class="ch-name">📦 Вкладыши</div><div class="ch-val">${fmt(Math.round(totalRev*.30))}</div><div class="ch-sub">30% · конв. 2.8%</div></div>
+        <div class="ch-pill"><div class="ch-name">🔍 SEO</div><div class="ch-val">${fmt(Math.round(totalRev*.20))}</div><div class="ch-sub">20% · конв. 1.9%</div></div>
+        <div class="ch-pill"><div class="ch-name">📢 Click-out</div><div class="ch-val">${fmt(Math.round(totalRev*.10))}</div><div class="ch-sub">10% · конв. 1.1%</div></div>
+      </div>
+    </div>
+    <div class="adm-table-wrap"><div class="adm-table-head"><h3>Последние заказы</h3><button class="adm-btn sm" onclick="admTab('orders',null)">Все заказы →</button></div>
+    <table class="adm-tbl"><thead><tr><th>№</th><th>Клиент</th><th>Сумма</th><th>Статус</th><th>Канал</th><th>Дата</th></tr></thead><tbody>
+    ${orders.slice(0,5).map(o=>`<tr>
+      <td class="mono">#${o.id}</td>
+      <td><div class="bold">${o.name}</div><div style="font-size:11px;color:var(--muted)">${o.phone}</div></td>
+      <td class="bold" style="color:var(--orange2)">${fmt(o.total)}</td>
+      <td><span class="stbadge st-${o.status}">${{new:'Новый',proc:'В работе',send:'Отправлен',done:'Выполнен'}[o.status]}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${o.src||'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${o.date}</td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+  }
+
+  else if(admCur==='orders'){
+    el.innerHTML=`<h2>📋 Заказы (InSales)</h2>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="adm-btn" onclick="toast('Экспорт в Excel запущен')">⬇ Экспорт Excel</button>
+      <button class="adm-btn" onclick="toast('Данные обновлены из InSales')">🔄 Обновить</button>
+    </div>
+    ${!orders.length?'<div style="padding:40px;text-align:center;color:var(--muted)">Заказов пока нет — оформите первый в каталоге</div>':
+    `<div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>№</th><th>Клиент</th><th>Товары</th><th>Итого</th><th>Оплата</th><th>Статус</th><th>Дата</th><th>Действие</th></tr></thead><tbody>
+    ${orders.map(o=>`<tr>
+      <td class="mono">#${o.id}</td>
+      <td><div class="bold">${o.name}</div><div style="font-size:11px;color:var(--muted)">${o.phone}</div></td>
+      <td style="font-size:12px;color:var(--muted);max-width:180px">${o.items.map(i=>`${i.name} ×${i.qty}`).join(', ')}</td>
+      <td class="bold" style="color:var(--orange2)">${fmt(o.total)}</td>
+      <td style="font-size:12px">${o.pay.split(' ')[0]}</td>
+      <td><span class="stbadge st-${o.status}">${{new:'Новый',proc:'В работе',send:'Отправлен',done:'Выполнен'}[o.status]}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${o.date}</td>
+      <td><select style="font-size:11px;border:1px solid var(--border);border-radius:3px;padding:2px" onchange="updStatus('${o.id}',this.value)">
+        <option value="new" ${o.status==='new'?'selected':''}>Новый</option>
+        <option value="proc" ${o.status==='proc'?'selected':''}>В работе</option>
+        <option value="send" ${o.status==='send'?'selected':''}>Отправлен</option>
+        <option value="done" ${o.status==='done'?'selected':''}>Выполнен</option>
+      </select></td>
+    </tr>`).join('')}
+    </tbody></table></div>`}`;
+  }
+
+  else if(admCur==='stock'){
+    const lowCount=P.filter(p=>p.stock<20).length;
+    el.innerHTML=`<h2>📦 Остатки на складе (МойСклад)</h2>
+    <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+      <div class="metric"><div class="mv">${P.reduce((s,p)=>s+p.stock,0).toLocaleString()}</div><div class="ml">Всего единиц</div></div>
+      <div class="metric"><div class="mv" style="color:var(--red)">${lowCount}</div><div class="ml">Позиций с низким остатком</div><div class="md dn">Требуют внимания</div></div>
+      <div class="metric"><div class="mv">${P.length}</div><div class="ml">SKU в каталоге</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+      <button class="adm-btn" onclick="syncStockNow()">🔄 Синхронизировать с InSales</button>
+      <div class="sync-status"><span class="sync-dot"></span>МойСклад подключён · авто-синхр. каждые 15 мин</div>
+    </div>
+    <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Товар</th><th>Склад</th><th>Остаток</th><th>Остаток</th><th>Цена опт.</th><th>Маржа</th><th>Синхр.</th></tr></thead><tbody>
+    ${P.map(p=>{
+      const pct=Math.min(100,Math.round(p.stock/10));
+      const cls=p.stock<20?'low':p.stock<100?'mid':'';
+      const margin=Math.round((1-p.price/p.old)*100);
+      return`<tr>
+        <td><div class="bold" style="font-size:13px">${p.name}</div></td>
+        <td style="font-size:12px">${p.cat==='gas'?'🏭 Челябинск':'📦 Красногорск'}</td>
+        <td><span style="font-weight:700;color:${p.stock<20?'var(--red)':p.stock<100?'var(--yellow)':'var(--green)'}">${p.stock} шт</span></td>
+        <td style="min-width:80px"><div class="stock-bar"><div class="stock-fill ${cls}" style="width:${Math.min(100,p.stock/10)}%"></div></div></td>
+        <td>${fmt(p.price)}</td>
+        <td style="color:var(--green);font-weight:700">−${margin}%</td>
+        <td><span class="stbadge st-send" style="font-size:10px">✓ Синхр.</span></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`;
+  }
+
+  else if(admCur==='clients'){
+    const totalClientRev=clients.reduce((s,c)=>s+c.total,0);
+    el.innerHTML=`<h2>👥 Клиенты (InSales CRM)</h2>
+    <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+      <div class="metric"><div class="mv">${clients.length}</div><div class="ml">Клиентов в базе</div></div>
+      <div class="metric"><div class="mv">${clients.filter(c=>c.type==='whl').length}</div><div class="ml">Оптовых</div></div>
+      <div class="metric"><div class="mv">${fmt(totalClientRev)}</div><div class="ml">Общая выручка</div></div>
+    </div>
+    ${!clients.length?'<div style="padding:40px;text-align:center;color:var(--muted)">Клиентов пока нет</div>':
+    `<div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Клиент</th><th>Тип</th><th>Заказов</th><th>Сумма</th><th>Последний</th><th>Промокод</th></tr></thead><tbody>
+    ${clients.map(c=>`<tr>
+      <td><div class="bold">${c.name}</div><div style="font-size:11px;color:var(--muted)">${c.phone}</div></td>
+      <td><span class="client-t ct-${c.type}">${c.type==='whl'?'Оптовый':'Розница'}</span></td>
+      <td class="bold">${c.orders}</td>
+      <td class="bold" style="color:var(--orange2)">${fmt(c.total)}</td>
+      <td style="font-size:12px;color:var(--muted)">${c.last}</td>
+      <td style="font-size:12px;color:var(--green)">${c.type==='whl'?'ОПТ10':'РЫБАК5'}</td>
+    </tr>`).join('')}
+    </tbody></table></div>`}`;
+  }
+
+  else if(admCur==='sync'){
+    el.innerHTML=`<h2>🔄 Синхронизация (МойСклад ↔ InSales)</h2>
+    <div class="integration-row">
+      <div class="intg-card">
+        <h3><div class="intg-logo ins">IS</div>InSales</h3>
+        <div class="intg-stat"><strong>Статус:</strong> Подключён ✅<br><strong>Тариф:</strong> Бизнес (API активен)<br><strong>Магазин:</strong> catcherfish.ru<br><strong>Товаров выгружено:</strong> ${P.length}</div>
+        <div class="sync-row"><div class="sync-status"><span class="sync-dot"></span>Онлайн</div><button class="adm-btn sm" onclick="syncNow('InSales')">Синхронизировать</button></div>
+      </div>
+      <div class="intg-card">
+        <h3><div class="intg-logo ms">МС</div>МойСклад</h3>
+        <div class="intg-stat"><strong>Статус:</strong> Подключён ✅<br><strong>Тариф:</strong> Базовый (API активен)<br><strong>Склад:</strong> Челябинск + Красногорск<br><strong>Синхр. каждые:</strong> 15 мин</div>
+        <div class="sync-row"><div class="sync-status"><span class="sync-dot"></span>Онлайн</div><button class="adm-btn sm" onclick="syncNow('МойСклад')">Принудительно</button></div>
+      </div>
+    </div>
+    <div class="adm-table-wrap"><div class="adm-table-head"><h3>Лог синхронизации</h3><button class="adm-btn sm" onclick="syncNow('все системы')">🔄 Запустить всё</button></div>
+    <table class="adm-tbl"><thead><tr><th>Время</th><th>Событие</th><th>Статус</th></tr></thead><tbody>
+    ${syncLog.map(l=>`<tr>
+      <td style="font-size:12px;color:var(--muted);font-family:monospace">${l.time}</td>
+      <td style="font-size:13px">${l.event}</td>
+      <td><span class="stbadge st-${l.status==='ok'?'send':'new'}">${l.status==='ok'?'✓ Успешно':'⚠ Ошибка'}</span></td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+  }
+
+  else if(admCur==='analytics'){
+    el.innerHTML=`<h2>📈 Аналитика</h2>
+    <div class="metrics">
+      <div class="metric"><div class="mv" style="color:var(--orange2)">${fmt(totalRev)}</div><div class="ml">Выручка</div></div>
+      <div class="metric"><div class="mv">${totalOrds}</div><div class="ml">Заказов</div></div>
+      <div class="metric"><div class="mv">${fmt(Math.round(totalRev/(totalOrds||1)))}</div><div class="ml">Средний чек</div></div>
+      <div class="metric"><div class="mv">${clients.filter(c=>c.type==='whl').length}</div><div class="ml">Оптовых клиентов</div></div>
+    </div>
+    <div class="chart-area"><h3>Выручка по дням (симуляция)</h3>
+      <div class="bar-chart" id="bar-chart"></div>
+    </div>
+    <div class="chart-area"><h3>Каналы трафика</h3>
+      <div class="channel-row">
+        <div class="ch-pill"><div class="ch-name">🎣 Telegram</div><div class="ch-val" style="color:var(--blue)">${Math.ceil(totalOrds*.4)} зак.</div><div class="ch-sub">${fmt(Math.round(totalRev*.4))}</div></div>
+        <div class="ch-pill"><div class="ch-name">📦 Вкладыши</div><div class="ch-val" style="color:var(--green)">${Math.ceil(totalOrds*.3)} зак.</div><div class="ch-sub">${fmt(Math.round(totalRev*.3))}</div></div>
+        <div class="ch-pill"><div class="ch-name">🔍 SEO Яндекс</div><div class="ch-val" style="color:var(--orange)">${Math.ceil(totalOrds*.2)} зак.</div><div class="ch-sub">${fmt(Math.round(totalRev*.2))}</div></div>
+        <div class="ch-pill"><div class="ch-name">📢 Click-out</div><div class="ch-val" style="color:var(--purple)">${Math.ceil(totalOrds*.1)} зак.</div><div class="ch-sub">${fmt(Math.round(totalRev*.1))}</div></div>
+      </div>
+    </div>`;
+    setTimeout(()=>{
+      const days=['13.03','14.03','15.03','16.03','17.03','18.03','19.03'];
+      const vals=[2400,5800,3200,8900,4100,7200,totalRev||1200];
+      const max=Math.max(...vals);
+      const bc=document.getElementById('bar-chart');
+      if(bc) bc.innerHTML=days.map((d,i)=>`<div class="bar-col"><div class="bar" style="height:${Math.round(vals[i]/max*100)}px"><div class="bar-val">${Math.round(vals[i]/1000)}к</div></div><div class="bar-lbl">${d}</div></div>`).join('');
+    },50);
+  }
+
+  else if(admCur==='integrations'){
+    el.innerHTML=`<h2>🔗 Интеграции</h2>
+    <div class="integration-row">
+      <div class="intg-card"><h3><div class="intg-logo ins">IS</div>InSales</h3><div class="intg-stat"><strong>Каталог:</strong> ${P.length} товаров<br><strong>Остатки:</strong> синхр. каждые 15 мин<br><strong>Заказы:</strong> передаются в МойСклад<br><strong>Статус:</strong> ✅ Активен</div><button class="adm-btn sm" onclick="toast('Настройки InSales открыты')">Настроить</button></div>
+      <div class="intg-card"><h3><div class="intg-logo ms">МС</div>МойСклад</h3><div class="intg-stat"><strong>Склады:</strong> Челябинск, Красногорск<br><strong>API ключ:</strong> ●●●●●●●●1a2b<br><strong>Заказов передано:</strong> ${orders.length}<br><strong>Статус:</strong> ✅ Активен</div><button class="adm-btn sm" onclick="toast('Настройки МойСклад открыты')">Настроить</button></div>
+    </div>
+    <div class="integration-row">
+      <div class="intg-card"><h3><div class="intg-logo yk">ЮК</div>ЮKassa</h3><div class="intg-stat"><strong>Статус:</strong> 🟡 Тестовый режим<br><strong>Методы:</strong> Карты, ЯПэй, SberPay<br><strong>54-ФЗ:</strong> Автоматические чеки<br><strong>Транзакций:</strong> ${orders.filter(o=>o.pay.includes('Картой')).length}</div><button class="adm-btn sm" onclick="toast('Верификация ИП — 1-3 дня после подачи документов')">Верифицировать</button></div>
+      <div class="intg-card"><h3>✈ Telegram-канал</h3><div class="intg-stat"><strong>Канал:</strong> @catcherfish<br><strong>Подписчиков:</strong> 0 (не создан)<br><strong>Заказов с Telegram:</strong> ${Math.ceil(orders.length*.4)}<br><strong>Следующий шаг:</strong> Создать канал</div><button class="adm-btn sm" onclick="toast('Создайте канал @catcherfish в Telegram')">Создать канал</button></div>
+    </div>`;
+  }
+
+  else if(admCur==='ykassa'){
+    el.innerHTML=`<h2>💳 ЮKassa <span class="sub">Платёжная интеграция</span></h2>
+    <div class="ibox or"><strong>⚠ Тестовый режим.</strong> Реальные платежи активируются после верификации ИП Анатолия (1–3 рабочих дня). Подать документы: <a href="https://yookassa.ru" target="_blank">yookassa.ru</a></div>
+    <div class="integration-row">
+      <div class="intg-card"><h3>Статистика платежей</h3><div class="intg-stat"><strong>Всего транзакций:</strong> ${orders.length}<br><strong>Картой онлайн:</strong> ${orders.filter(o=>o.pay.includes('Картой')).length}<br><strong>Наличными:</strong> ${orders.filter(o=>o.pay.includes('Налич')).length}<br><strong>По счёту:</strong> ${orders.filter(o=>o.pay.includes('счёт')).length}</div></div>
+      <div class="intg-card"><h3>Документы для верификации</h3><div class="intg-stat">☐ Паспорт ИП (разворот + прописка)<br>☐ ИНН<br>☐ ОГРНИП<br>☐ Расчётный счёт<br>☐ Сайт с публичной офертой</div><button class="adm-btn sm or" onclick="toast('Откройте yookassa.ru и загрузите документы')">Подать документы →</button></div>
+    </div>`;
+  }
+
+  else if(admCur==='telegram'){
+    el.innerHTML=`<h2>✈ Telegram-канал <span class="sub">@catcherfish</span></h2>
+    <div class="ibox bl"><strong>Канал ещё не создан.</strong> Это ключевой канал привлечения — по плану 40% заказов. Создайте канал сегодня.</div>
+    <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+      <div class="metric"><div class="mv">0</div><div class="ml">Подписчиков</div><div class="md rd">Нужно создать</div></div>
+      <div class="metric"><div class="mv">${Math.ceil(orders.length*.4)}</div><div class="ml">Заказов ожидается</div><div class="md up">40% от общего</div></div>
+      <div class="metric"><div class="mv">5–7</div><div class="ml">Постов в неделю</div><div class="md nu">Рекомендуется</div></div>
+    </div>
+    <div class="adm-table-wrap"><div class="adm-table-head"><h3>Контент-план — следующие 7 дней</h3></div>
+    <table class="adm-tbl"><thead><tr><th>День</th><th>Тип поста</th><th>Тема</th><th>Статус</th></tr></thead><tbody>
+      <tr><td>Пн 20.03</td><td><span class="stbadge st-new">История</span></td><td>Открытие канала. Кто мы, почему дешевле Ozon.</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован в буфер')">Скопировать</button></td></tr>
+      <tr><td>Вт 21.03</td><td><span class="stbadge st-proc">Польза</span></td><td>Топ-5 горелок для зимней рыбалки</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован')">Скопировать</button></td></tr>
+      <tr><td>Ср 22.03</td><td><span class="stbadge st-send">Акция</span></td><td>Горелка NS 509 — 280 ₽. Промокод РЫБАК7.</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован')">Скопировать</button></td></tr>
+      <tr><td>Чт 23.03</td><td><span class="stbadge st-done">Опрос</span></td><td>Какую рыбу ловишь чаще?</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован')">Скопировать</button></td></tr>
+      <tr><td>Пт 24.03</td><td><span class="stbadge st-proc">Товар</span></td><td>Плитка М-100 — 760 ₽. Остаток 298 шт.</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован')">Скопировать</button></td></tr>
+      <tr><td>Сб 25.03</td><td><span class="stbadge st-send">Польза</span></td><td>Где клюёт в Челябинской области — март</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован')">Скопировать</button></td></tr>
+    </tbody></table></div>`;
+  }
+
+  else if(admCur==='catalog_adm'){
+    el.innerHTML=`<h2>🛍 Каталог (InSales)</h2>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="adm-btn" onclick="toast('Импорт из МойСклад запущен')">⬆ Импорт из МойСклад</button>
+      <button class="adm-btn" onclick="toast('Экспорт в CSV готов')">⬇ Экспорт CSV</button>
+    </div>
+    <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Фото</th><th>Название</th><th>Категория</th><th>Цена</th><th>Остаток</th><th>Статус InSales</th></tr></thead><tbody>
+    ${P.map(p=>`<tr>
+      <td><img src="${p.img}" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--border);border-radius:3px" onerror="this.style.display='none'"></td>
+      <td><div class="bold" style="font-size:13px">${p.name}</div></td>
+      <td style="font-size:12px;color:var(--muted)">${{fishing:'Рыболовные',gas:'Газовое',lure:'Снасти',boat:'Лодки'}[p.cat]}</td>
+      <td class="bold">${fmt(p.price)}</td>
+      <td style="font-weight:700;color:${p.stock<20?'var(--red)':p.stock<100?'var(--yellow)':'var(--green)'}">${p.stock}</td>
+      <td><span class="stbadge st-send">✓ Опубликован</span></td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+  }
+}
+
+function updStatus(id,status){
+  const o=orders.find(x=>x.id===id);if(!o)return;
+  o.status=status;
+  syncLog.unshift({time:new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),event:`Статус заказа #${id} изменён на «${{new:'Новый',proc:'В работе',send:'Отправлен',done:'Выполнен'}[status]}»`,status:'ok'});
+  toast(`Заказ #${id} → ${{new:'Новый',proc:'В работе',send:'Отправлен',done:'Выполнен'}[status]}`);
+}
+function syncNow(name){
+  const t=new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  syncLog.unshift({time:t,event:`Принудительная синхронизация: ${name}`,status:'ok'});
+  toast(`${name} — синхронизация выполнена`);
+  renderAdmin();
+}
+function syncStockNow(){
+  syncLog.unshift({time:new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),event:'Остатки обновлены в InSales (10 товаров)',status:'ok'});
+  toast('Остатки синхронизированы с InSales');
+  renderAdmin();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+renderCatalog();
+updCart();
+</script>
+</body>
+</html>
