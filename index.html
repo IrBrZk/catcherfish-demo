@@ -438,7 +438,7 @@
 <script>
 (() => {
   const WEATHER_API_KEY = 'YOUR_OPENWEATHERMAP_KEY';
-  const ANTHROPIC_API_KEY = 'YOUR_CLAUDE_KEY';
+  const ANTHROPIC_API_KEY = '';
   const SYSTEM_PROMPT = `Ты — опытный рыболов и консультант магазина CatcherFish.
 Знаешь ассортимент магазина: грузила чебурашки (185 руб), грузила для отводного поводка (210 руб), блесны колебалки Catcher (320 руб), фурнитура вертлюги+карабины (140 руб), лодка ЛГН-2 (8900 руб), горелка NS509 (280 руб), горелка NS502 (400 руб), плитка М-100 (760 руб), горелка NS06 с деревянной ручкой (960 руб), горелка NS100 (280 руб), палатка AG 2038 оранж/голуб (12000 руб), палатка 2524А барс-серый (14400 руб), мини-обогреватель (2880 руб).
 Отвечай коротко (3-5 предложений). Всегда рекомендуй 2-3 конкретных товаров из ассортимента с ценами. Учитывай погоду, сезон и запрос пользователя. Пиши по-русски, дружелюбно, как рыбак рыбаку.`;
@@ -638,14 +638,12 @@
       model: 'claude-sonnet-4-20250514',
       system: SYSTEM_PROMPT,
       messages: [
+        
         {role: 'user', content: `${context}\nВопрос: ${question}`}
       ],
       max_tokens: 1000
     };
     const headers = {'Content-Type': 'application/json'};
-    if (ANTHROPIC_API_KEY) {
-      headers['Authorization'] = `Bearer ${ANTHROPIC_API_KEY}`;
-    }
     const resp = await fetch('https://green-recipe-d8fd.irina-suwarov.workers.dev', {
       method: 'POST',
       headers,
