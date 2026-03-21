@@ -526,19 +526,25 @@
   function appendMessage(role, text) {
     const msg = document.createElement('div');
     msg.className = `kleov-msg ${role}`;
-    let html = text
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/\n/g, '<br>');
+    
     if (role === 'assistant') {
-      Object.entries(PRODUCT_LINKS).forEach(([name, anchor]) => {
-        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`(${escapedName}[^<(]*)`, 'gi');
-        const category = anchor.replace('#', '');
-        html = html.replace(regex, `<a href="#" onclick="filterCat('${category}');showPage('catalog');return false;" style="color:#e67e22;font-weight:600;text-decoration:underline">$1</a>`);
+      let linked = text;
+      Object.entries(PRODUCT_LINKS).forEach(([name, cat]) => {
+        const regex = new RegExp(`(${name}[^\n<(]*)`, 'gi');
+        linked = linked.replace(regex,
+          `<a href="#" onclick="filterCat('${cat}');showPage('catalog');return false;" ` +
+          `style="color:#e67e22;font-weight:600;text-decoration:underline">$1</a>`
+        );
       });
+      linked = linked
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+      msg.innerHTML = linked;
+    } else {
+      msg.textContent = text;
     }
-    msg.innerHTML = html;
+    
     messages.appendChild(msg);
     messages.scrollTop = messages.scrollHeight;
     return msg;
