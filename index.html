@@ -624,7 +624,7 @@
       body: JSON.stringify(payload)
     });
     const data = await resp.json();
-    return (data.completion || data.choices?.[0]?.message?.content || '').trim() || 'Пока нет ответа.';
+    return (data.content?.[0]?.text || '').trim() || 'Пока нет ответа.';
   }
 })();
 </script>
