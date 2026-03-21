@@ -607,8 +607,9 @@
       : 'Погода пока неизвестна.';
     const payload = {
       model: 'claude-sonnet-4-20250514',
+      system: SYSTEM_PROMPT,
       messages: [
-        {role: 'system', content: SYSTEM_PROMPT},
+        
         {role: 'user', content: `${context}\nВопрос: ${question}`}
       ],
       max_tokens: 1000
