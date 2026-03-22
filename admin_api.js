@@ -86,7 +86,7 @@ async function renderAdminApi(tab) {
         <div class="metric"><div class="mv">${stats.stocks?.units || 0}</div><div class="ml">Остатков</div></div>
       </div>
       <div class="adm-table-wrap" style="margin-bottom:14px">
-        <div class="adm-table-head"><h3>Остатки по источникам</h3><span class="sub">/stocks.by_source_group</span></div>
+        <div class="adm-table-head"><h3>Остатки по источникам</h3><span class="sub">сводка по источникам</span></div>
         <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-top:8px">
           <div class="metric"><div class="mv" style="color:var(--yellow)">${Number(marketplaceStock.units || 0).toLocaleString('ru-RU')}</div><div class="ml">Маркетплейс · ${Number(marketplaceStock.count || 0)} строк</div></div>
           <div class="metric"><div class="mv" style="color:var(--blue)">${Number(warehouseStock.units || 0).toLocaleString('ru-RU')}</div><div class="ml">Склад · ${Number(warehouseStock.count || 0)} строк</div></div>
@@ -105,7 +105,7 @@ async function renderAdminApi(tab) {
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>📊 Дашборд <span class="sub">API error</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>📊 Дашборд <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
     }
     return;
   }
@@ -116,7 +116,7 @@ async function renderAdminApi(tab) {
       const data = await loadOrders(50);
       if (seq !== admRenderSeq) return;
       const rows = data.items || [];
-      el.innerHTML = `<h2>📋 Заказы <span class="sub">read-only API</span></h2>
+      el.innerHTML = `<h2>📋 Заказы <span class="sub">данные из системы</span></h2>
       <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
         <div class="metric"><div class="mv">${rows.length}</div><div class="ml">Показано</div></div>
         <div class="metric"><div class="mv">${rows.filter(o => String(o.status || '').toLowerCase() === 'new').length}</div><div class="ml">Новые</div></div>
@@ -137,7 +137,7 @@ async function renderAdminApi(tab) {
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>📋 Заказы <span class="sub">API error</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>📋 Заказы <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
     }
     return;
   }
@@ -175,7 +175,7 @@ async function renderAdminApi(tab) {
         grouped.set(key, current);
       }
       const groupedRows = [...grouped.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'ru'));
-      el.innerHTML = `<h2>📦 Остатки на складе (catcherfish_db) <span class="sub">Источники → PostgreSQL</span></h2>
+      el.innerHTML = `<h2>📦 Остатки на складе <span class="sub">Источники → система</span></h2>
       <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
         <div class="metric"><div class="mv" style="color:var(--yellow)">${Number(marketplace.units || 0).toLocaleString('ru-RU')}</div><div class="ml">Маркетплейс: ${Number(marketplace.count || 0)} строк</div></div>
         <div class="metric"><div class="mv" style="color:var(--blue)">${Number(warehouse.units || 0).toLocaleString('ru-RU')}</div><div class="ml">Склад: ${Number(warehouse.count || 0)} строк</div></div>
@@ -183,7 +183,7 @@ async function renderAdminApi(tab) {
       </div>
       <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
         <button class="adm-btn" onclick="syncStockNow()">🔄 Синхронизировать источники</button>
-        <div class="sync-status"><span class="sync-dot"></span>PostgreSQL подключён · catcherfish_db · авто-синхр. каждые 15 мин</div>
+        <div class="sync-status"><span class="sync-dot"></span>Система подключена · авто-синхр. каждые 15 мин</div>
       </div>
       <div class="adm-table-wrap"><div class="adm-table-head"><h3>Остатки по SKU</h3><span class="sub">Один товар = одна строка, суммы по источникам</span></div>
       <table class="adm-tbl"><thead><tr><th>Товар</th><th>SKU</th><th>Маркетплейс</th><th>Склад</th><th>Импорт</th><th>Итого</th></tr></thead><tbody>
@@ -200,7 +200,7 @@ async function renderAdminApi(tab) {
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>📦 Остатки <span class="sub">API error</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>📦 Остатки <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
     }
     return;
   }
@@ -222,7 +222,7 @@ async function renderAdminApi(tab) {
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>🔄 Синхронизация <span class="sub">API error</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>🔄 Синхронизация <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
     }
     return;
   }
@@ -255,7 +255,7 @@ async function renderAdminApi(tab) {
       </div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>📈 Аналитика <span class="sub">API error</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>📈 Аналитика <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
     }
     return;
   }
@@ -267,7 +267,7 @@ async function renderAdminApi(tab) {
       if (seq !== admRenderSeq) return;
       const rows = data.items || [];
       const totalStock = rows.reduce((sum, p) => sum + Number(p.stock || p.quantity || 0), 0);
-      el.innerHTML = `<h2>🛍 Каталог <span class="sub">read-only API</span></h2>
+      el.innerHTML = `<h2>🛍 Каталог <span class="sub">данные из системы</span></h2>
       <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
         <div class="metric"><div class="mv">${rows.length}</div><div class="ml">Товаров</div></div>
         <div class="metric"><div class="mv">${totalStock.toLocaleString('ru-RU')}</div><div class="ml">Единиц на складе</div></div>
@@ -290,7 +290,7 @@ async function renderAdminApi(tab) {
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>🛍 Каталог <span class="sub">API error</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>🛍 Каталог <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
     }
     return;
   }

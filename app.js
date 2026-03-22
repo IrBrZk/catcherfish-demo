@@ -395,7 +395,7 @@ function renderAdmin(tab){
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
       <button class="adm-btn" onclick="syncStockNow()">🔄 Обновить остатки</button>
-      <div class="sync-status"><span class="sync-dot"></span>PostgreSQL подключён · авто-синхр. каждые 15 мин</div>
+      <div class="sync-status"><span class="sync-dot"></span>Система подключена · авто-синхр. каждые 15 мин</div>
     </div>
     <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Товар</th><th>Склад</th><th>Остаток</th><th>Остаток</th><th>Цена опт.</th><th>Маржа</th><th>Синхр.</th></tr></thead><tbody>
     ${P.map(p=>{
