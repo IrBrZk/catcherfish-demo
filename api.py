@@ -25,7 +25,12 @@ load_dotenv()
 app = FastAPI(title="CatcherFish API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://irbrzk.github.io", "http://localhost"],
+    allow_origins=[
+        "https://irbrzk.github.io",
+        "http://localhost",
+        "http://127.0.0.1",
+        "*",
+    ],
     allow_credentials=True,
     allow_methods=["GET", "OPTIONS"],
     allow_headers=["*"],

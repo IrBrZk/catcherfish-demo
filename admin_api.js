@@ -204,7 +204,7 @@ async function renderAdminApi(tab) {
     return;
   }
 
-  return legacyRenderAdmin ? legacyRenderAdmin(tab) : undefined;
+  return;
 }
 
 function syncNow(name) {
