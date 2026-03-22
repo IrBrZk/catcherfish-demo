@@ -106,6 +106,19 @@ async def table_exists(conn: asyncpg.Connection, table_name: str) -> bool:
     )
 
 
+async def table_columns(conn: asyncpg.Connection, table_name: str) -> set[str]:
+    rows = await conn.fetch(
+        """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = $1
+        """,
+        table_name,
+    )
+    return {row["column_name"] for row in rows}
+
+
 @app.on_event("startup")
 async def startup() -> None:
     await get_pool()
@@ -184,18 +197,40 @@ async def get_stocks(
 ):
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
+        if not await table_exists(conn, "stocks"):
+            return {"items": [], "total": 0, "limit": limit, "offset": offset}
+        stock_cols = await table_columns(conn, "stocks")
+        stock_key = "sku" if "sku" in stock_cols else "wb_nm_id" if "wb_nm_id" in stock_cols else None
+        if not stock_key:
+            return {"items": [], "total": 0, "limit": limit, "offset": offset}
+        qty_key = next((name for name in ("quantity", "stock", "balance", "qty") if name in stock_cols), None)
+        wh_key = "warehouse_id" if "warehouse_id" in stock_cols else None
+        upd_key = "updated_at" if "updated_at" in stock_cols else None
+        select_parts = [
+            f"s.{stock_key} AS sku",
+            f"s.{stock_key} AS wb_nm_id",
+            f"s.{qty_key} AS quantity" if qty_key else "0 AS quantity",
+            f"s.{wh_key} AS warehouse_id" if wh_key else "NULL::text AS warehouse_id",
+            f"s.{upd_key} AS updated_at" if upd_key else "NOW() AS updated_at",
+            "p.name AS product_name",
+            "p.brand",
+            "p.description",
+            "p.price",
+        ]
+        join_expr = f"p.sku = s.{stock_key}" if stock_key == "sku" else f"p.wb_nm_id = s.{stock_key}"
         rows = await conn.fetch(
-            """
-            SELECT s.sku, s.wb_nm_id, s.warehouse_id, s.quantity, s.updated_at,
-                   p.name AS product_name, p.brand, p.description, p.price
+            f"""
+            SELECT {', '.join(select_parts)}
             FROM stocks s
-            LEFT JOIN products p ON p.sku = s.sku
-            ORDER BY s.updated_at DESC, s.sku DESC
+            LEFT JOIN products p ON {join_expr}
+            ORDER BY s.{stock_key} DESC
             """
         )
     items = []
     for row in rows:
         item = row_to_dict(row)
+        item.setdefault("product_name", item.get("name") or item.get("sku"))
+        item.setdefault("quantity", item.get("quantity", item.get("stock", item.get("balance", item.get("qty", 0)))))
         item["category"] = infer_category(item)
         items.append(item)
 
