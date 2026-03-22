@@ -1,4 +1,4 @@
-const API_BASE = window.API_BASE || 'https://твой-vps-ip:8000';
+const API_BASE = window.API_BASE || 'http://103.73.35.92:8000';
 const legacyRenderAdmin = window.renderAdmin;
 let admCur = window.admCur || 'dashboard';
 let admRenderSeq = 0;
