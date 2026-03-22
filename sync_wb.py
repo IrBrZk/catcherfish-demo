@@ -330,6 +330,13 @@ def extract_size_quantity(size: Dict[str, Any]) -> int:
     return 0
 
 
+def extract_card_stock(card: Dict[str, Any]) -> int:
+    total = 0
+    for size in card.get("sizes") or []:
+        total += extract_size_quantity(size)
+    return total
+
+
 def upsert_products(conn, cards: Sequence[Dict[str, Any]], price_map: Dict[int, Decimal]) -> int:
     updated = 0
     with conn.cursor() as cur:
@@ -348,6 +355,7 @@ def upsert_products(conn, cards: Sequence[Dict[str, Any]], price_map: Dict[int, 
                         or photo.get("tm")
                     )
             photos = [photo for photo in photos if photo]
+            stock_qty = extract_card_stock(card)
 
             price = price_map.get(int(nm_id))
             if price is None:
@@ -383,6 +391,7 @@ def upsert_products(conn, cards: Sequence[Dict[str, Any]], price_map: Dict[int, 
                     card.get("brand"),
                     None,
                     None,
+                    stock_qty,
                     Json(photos),
                     price,
                 ),
