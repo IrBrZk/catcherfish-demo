@@ -37,14 +37,14 @@ function admTab(tab, el) {
   window.admCur = admCur;
   document.querySelectorAll('.adm-nav a').forEach(a => a.classList.remove('act'));
   if (el) el.classList.add('act');
-  renderAdmin(tab);
+  renderAdminApi(tab);
 }
 
 function renderLoading(title) {
   return `<h2>${title} <span class="sub">Loading...</span></h2><div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>`;
 }
 
-async function renderAdmin(tab) {
+async function renderAdminApi(tab) {
   admCur = tab || admCur;
   window.admCur = admCur;
   const seq = ++admRenderSeq;
@@ -209,21 +209,21 @@ async function renderAdmin(tab) {
 
 function syncNow(name) {
   toast(`${name} — данные управляются через API read-only`);
-  renderAdmin(admCur);
+  renderAdminApi(admCur);
 }
 
 function syncStockNow() {
   toast('Остатки обновляются cron-задачей WB sync');
-  renderAdmin('stock');
+  renderAdminApi('stock');
 }
 
 window.admCur = admCur;
 window.admTab = admTab;
-window.renderAdmin = renderAdmin;
+window.renderAdmin = renderAdminApi;
 window.syncNow = syncNow;
 window.syncStockNow = syncStockNow;
 
 const adminPage = document.getElementById('page-admin');
 if (adminPage && adminPage.classList.contains('active')) {
-  setTimeout(() => renderAdmin(window.admCur || 'dashboard'), 0);
+  setTimeout(() => renderAdminApi(window.admCur || 'dashboard'), 0);
 }
