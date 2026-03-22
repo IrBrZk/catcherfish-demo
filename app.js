@@ -76,15 +76,21 @@ function resolvePhotoUrl(photos){
   return '';
 }
 
+function localFallbackImageFor(product, idx){
+  const byName = LOCAL_P.find(item => String(item.name || '').toLowerCase() === String(product?.name || '').toLowerCase());
+  const byIndex = LOCAL_P[idx] || {};
+  return (byName && byName.img) || byIndex.img || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop';
+}
+
 async function loadCatalogFromAPI() {
   try {
     const resp = await fetch(`${window.API_BASE}/products?limit=100`);
     const data = await resp.json();
     const items = Array.isArray(data.items) ? data.items : [];
     if (!items.length) return;
-    const fallbackByName = new Map(LOCAL_P.map(item => [String(item.name || '').toLowerCase(), item]));
     P = items.map((p, idx) => {
-      const fallback = fallbackByName.get(String(p.name || '').toLowerCase()) || LOCAL_P[idx] || {};
+      const fallback = LOCAL_P.find(item => String(item.name || '').toLowerCase() === String(p.name || '').toLowerCase()) || LOCAL_P[idx] || {};
+      const fallbackImg = localFallbackImageFor(p, idx);
       const stock = Number(p.stock || p.quantity || fallback.stock || 0);
       return {
         id: p.id ?? p.sku ?? p.wb_nm_id ?? fallback.id ?? idx + 1,
@@ -93,6 +99,7 @@ async function loadCatalogFromAPI() {
         price: Number(p.price ?? fallback.price ?? 0),
         old: Number(p.price_old ?? p.price ?? fallback.old ?? fallback.price ?? 0),
         img: resolvePhotoUrl(p.photos) || fallback.img || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop',
+        fallbackImg,
         stock,
         badge: fallback.badge ?? null,
         bc: fallback.bc || 'or'
@@ -192,9 +199,10 @@ function buildProductCard(p){
   const ic=cart.find(c=>c.id===p.id);
   const disc=Math.round((1-p.price/p.old)*100);
   const stk=p.stock<20?`<div class="pstk-lo">⚠ Осталось ${p.stock} шт</div>`:`<div class="pstk-ok">✓ В наличии: ${p.stock} шт</div>`;
+  const fallbackImg = p.fallbackImg || localFallbackImageFor(p, 0);
   return `<div class="pcard">
       ${p.badge?`<div class="pbadge ${p.bc||'or'}">${p.badge}</div>`:''}
-      <div class="pimg"><img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.src='https://catcherfish.ru/image/cache/catalog/gruzila_cheburashki_razbornye-300x300.jpg'"></div>
+      <div class="pimg"><img src="${p.img}" alt="${p.name}" loading="lazy" data-fallback="${fallbackImg}" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.onerror=null;this.src=this.dataset.fallback}else{this.onerror=null;this.src='https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop'}"></div>
       <div class="pi">
         <div class="pn">${p.name}</div>
         <div class="pp-row"><span class="pp">${fmt(p.price)}</span><span class="pold">${fmt(p.old)}</span><span class="pdisc">−${disc}%</span></div>
@@ -230,7 +238,7 @@ function renderCart(){
   }
   const sub=cart.reduce((s,c)=>s+c.price*c.qty,0);
   body.innerHTML=cart.map(c=>`<div class="ci">
-    <img class="ci-img" src="${c.img}" onerror="this.src='https://catcherfish.ru/image/cache/catalog/gruzila_cheburashki_razbornye-300x300.jpg'">
+    <img class="ci-img" src="${c.img}" data-fallback="${c.fallbackImg || c.img || ''}" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.onerror=null;this.src=this.dataset.fallback}else{this.onerror=null;this.src='https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop'}">
     <div class="ci-inf">
       <div class="ci-n">${c.name}</div>
       <div class="ci-qr"><button class="cqb" onclick="chQ(${c.id},-1)">−</button><span style="min-width:20px;text-align:center;font-weight:700">${c.qty}</span><button class="cqb" onclick="chQ(${c.id},1)">+</button><span class="ci-u">${fmt(c.price)}/шт</span></div>
