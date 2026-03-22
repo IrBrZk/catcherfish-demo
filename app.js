@@ -49,7 +49,18 @@ function inferCatFromProduct(p){
 
 function resolvePhotoUrl(photos){
   if (!photos) return '';
-  if (typeof photos === 'string') return photos;
+  if (typeof photos === 'string') {
+    const text = photos.trim();
+    if (!text) return '';
+    if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+      try {
+        return resolvePhotoUrl(JSON.parse(text));
+      } catch (e) {
+        return text;
+      }
+    }
+    return text;
+  }
   if (Array.isArray(photos)) {
     for (const photo of photos) {
       if (typeof photo === 'string' && photo) return photo;
