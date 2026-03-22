@@ -204,6 +204,42 @@ async function renderAdminApi(tab) {
     return;
   }
 
+  if (admCur === 'catalog_adm') {
+    el.innerHTML = renderLoading('🛍 Каталог');
+    try {
+      const data = await loadProducts(100);
+      if (seq !== admRenderSeq) return;
+      const rows = data.items || [];
+      const totalStock = rows.reduce((sum, p) => sum + Number(p.stock || p.quantity || 0), 0);
+      el.innerHTML = `<h2>🛍 Каталог <span class="sub">read-only API</span></h2>
+      <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+        <div class="metric"><div class="mv">${rows.length}</div><div class="ml">Товаров</div></div>
+        <div class="metric"><div class="mv">${totalStock.toLocaleString('ru-RU')}</div><div class="ml">Единиц на складе</div></div>
+        <div class="metric"><div class="mv">${rows.filter(p => Number(p.stock || p.quantity || 0) < 20).length}</div><div class="ml">Низкий остаток</div></div>
+      </div>
+      <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Фото</th><th>Название</th><th>Категория</th><th>Цена</th><th>Остаток</th><th>Источник</th></tr></thead><tbody>
+      ${rows.length ? rows.map(p => {
+        const photo = Array.isArray(p.photos)
+          ? (p.photos.find(x => typeof x === 'string') || (p.photos[0] && (p.photos[0].big || p.photos[0].c516x688 || p.photos[0].square || p.photos[0].tm || p.photos[0].url || p.photos[0].src)) || '')
+          : (typeof p.photos === 'string' ? p.photos : '');
+        const cat = p.category || 'fishing';
+        return `<tr>
+          <td><img src="${escHtml(photo || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=80&h=80&fit=crop')}" style="width:44px;height:44px;object-fit:cover;border:1px solid var(--border);border-radius:3px" onerror="this.style.display='none'"></td>
+          <td><div class="bold" style="font-size:13px">${escHtml(p.name || `SKU ${p.sku || p.wb_nm_id || '—'}`)}</div><div style="font-size:11px;color:var(--muted)">${escHtml(p.description || '')}</div></td>
+          <td style="font-size:12px;color:var(--muted)">${escHtml({fishing:'Рыболовные',lure:'Снасти',gas:'Газовое',tent:'Туризм',boat:'Лодки',other:'Другое'}[cat] || cat)}</td>
+          <td class="bold" style="color:var(--orange2)">${fmtMoney(p.price || 0)}</td>
+          <td style="font-weight:700;color:${Number(p.stock || p.quantity || 0) < 20 ? 'var(--red)' : Number(p.stock || p.quantity || 0) < 100 ? 'var(--yellow)' : 'var(--green)'}">${Number(p.stock || p.quantity || 0)}</td>
+          <td><span class="stbadge st-send">wb</span></td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="6" style="padding:28px;color:var(--muted);text-align:center">Товаров пока нет</td></tr>'}
+      </tbody></table></div>`;
+    } catch (err) {
+      if (seq !== admRenderSeq) return;
+      el.innerHTML = `<h2>🛍 Каталог <span class="sub">API error</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+    }
+    return;
+  }
+
   return;
 }
 
