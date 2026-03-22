@@ -421,14 +421,18 @@ def upsert_stocks(
             chrt_id = size.get("chrtID")
             if chrt_id is not None:
                 chrt_id_int = int(chrt_id)
+                quantity = extract_size_quantity(size)
                 card_by_chrt_id[chrt_id_int] = int(nm_id)
-                card_fallback_qty[int(nm_id)] = card_fallback_qty.get(int(nm_id), 0) + extract_size_quantity(size)
+                if quantity > 0:
+                    card_fallback_qty[int(nm_id)] = card_fallback_qty.get(int(nm_id), 0) + quantity
 
     if not warehouses or not card_by_chrt_id:
         if not card_fallback_qty:
             return 0
         with conn.cursor() as cur:
             for nm_id, quantity in card_fallback_qty.items():
+                if quantity <= 0:
+                    continue
                 cur.execute(
                     """
                     INSERT INTO stocks (sku, wb_nm_id, warehouse, warehouse_id, quantity, source, stock_type, updated_at)
@@ -460,9 +464,11 @@ def upsert_stocks(
                 quantity = stock_map.get(chrt_id, 0)
                 if quantity > 0:
                     total_nonzero += 1
-                warehouse_qty[nm_id] = warehouse_qty.get(nm_id, 0) + quantity
+                    warehouse_qty[nm_id] = warehouse_qty.get(nm_id, 0) + quantity
 
             for nm_id, quantity in warehouse_qty.items():
+                if quantity <= 0:
+                    continue
                 cur.execute(
                     """
                     INSERT INTO stocks (sku, wb_nm_id, warehouse, warehouse_id, quantity, source, stock_type, updated_at)
@@ -483,6 +489,8 @@ def upsert_stocks(
     if total_nonzero == 0 and card_fallback_qty:
         with conn.cursor() as cur:
             for nm_id, quantity in card_fallback_qty.items():
+                if quantity <= 0:
+                    continue
                 cur.execute(
                     """
                     INSERT INTO stocks (sku, wb_nm_id, warehouse, warehouse_id, quantity, source, stock_type, updated_at)
