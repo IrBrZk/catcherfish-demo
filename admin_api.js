@@ -1,6 +1,5 @@
 const API_BASE = 'http://103.73.35.92:8000';
 const legacyRenderAdmin = window.renderAdmin;
-let admCur = window.admCur || 'dashboard';
 let admRenderSeq = 0;
 
 const escHtml = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
