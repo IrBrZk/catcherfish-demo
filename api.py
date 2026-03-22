@@ -146,6 +146,35 @@ def product_select_exprs(product_cols: set[str]) -> Dict[str, str]:
     }
 
 
+def order_select_exprs(order_cols: set[str]) -> Dict[str, str]:
+    order_id_col = "order_id" if "order_id" in order_cols else "id" if "id" in order_cols else None
+    status_col = "status" if "status" in order_cols else None
+    total_col = coalesce_expr(order_cols, ["total_amount", "total", "amount"], "0::numeric")
+    name_col = "customer_name" if "customer_name" in order_cols else "name" if "name" in order_cols else None
+    phone_col = "customer_phone" if "customer_phone" in order_cols else "phone" if "phone" in order_cols else None
+    email_col = "customer_email" if "customer_email" in order_cols else "email" if "email" in order_cols else None
+    items_col = "items" if "items" in order_cols else None
+    created_col = "created_at" if "created_at" in order_cols else "updated_at" if "updated_at" in order_cols else None
+    marketplace_col = "marketplace" if "marketplace" in order_cols else None
+    payment_method_col = "payment_method" if "payment_method" in order_cols else None
+    payment_status_col = "payment_status" if "payment_status" in order_cols else None
+    tracking_col = "tracking_number" if "tracking_number" in order_cols else None
+    return {
+        "order_id": order_id_col or "id::text",
+        "status": status_col or "'new'",
+        "total": total_col,
+        "name": name_col or "NULL::text",
+        "phone": phone_col or "NULL::text",
+        "email": email_col or "NULL::text",
+        "items": items_col or "'[]'::jsonb",
+        "created_at": created_col or "NOW()",
+        "marketplace": marketplace_col or "'website'",
+        "payment_method": payment_method_col or "''",
+        "payment_status": payment_status_col or "'pending'",
+        "tracking_number": tracking_col or "''",
+    }
+
+
 def coalesce_expr(columns: set[str], candidates: List[str], default: str) -> str:
     present = [name for name in candidates if name in columns]
     if not present:
@@ -405,28 +434,24 @@ async def get_orders(
         if not await table_exists(conn, "orders"):
             return {"items": [], "total": 0, "limit": limit, "offset": offset}
         order_cols = await table_columns(conn, "orders")
-        total_expr = coalesce_expr(order_cols, ["total_amount", "total", "amount"], "0::numeric")
-        name_expr = "customer_name" if "customer_name" in order_cols else "name" if "name" in order_cols else "NULL::text"
-        phone_expr = "customer_phone" if "customer_phone" in order_cols else "phone" if "phone" in order_cols else "NULL::text"
-        created_expr = "created_at" if "created_at" in order_cols else "NOW()"
-        status_expr = "status" if "status" in order_cols else "'new'"
-        items_expr = "items" if "items" in order_cols else "'[]'::jsonb"
-        order_id_expr = "order_id" if "order_id" in order_cols else "id::text"
+        exprs = order_select_exprs(order_cols)
         rows = await conn.fetch(
             f"""
             SELECT
-                {order_id_expr} AS order_id,
-                {status_expr} AS status,
-                {total_expr} AS total,
-                {name_expr} AS customer_name,
-                {phone_expr} AS customer_phone,
-                {items_expr} AS items,
-                {created_expr} AS created_at,
-                COALESCE(marketplace, 'website') AS marketplace,
-                COALESCE(payment_method, '') AS payment_method,
-                COALESCE(payment_status, 'pending') AS payment_status
+                {exprs['order_id']} AS order_id,
+                {exprs['status']} AS status,
+                {exprs['total']} AS total,
+                {exprs['name']} AS customer_name,
+                {exprs['phone']} AS customer_phone,
+                {exprs['email']} AS customer_email,
+                {exprs['items']} AS items,
+                {exprs['created_at']} AS created_at,
+                {exprs['marketplace']} AS marketplace,
+                {exprs['payment_method']} AS payment_method,
+                {exprs['payment_status']} AS payment_status,
+                {exprs['tracking_number']} AS tracking_number
             FROM orders
-            ORDER BY {created_expr} DESC, id DESC
+            ORDER BY {exprs['created_at']} DESC, id DESC
             """
         )
 
@@ -485,51 +510,48 @@ async def create_order(payload: Dict[str, Any]):
     async with pool_.acquire() as conn:
         if not await table_exists(conn, "orders"):
             raise HTTPException(status_code=503, detail="orders table is not available")
+        order_cols = await table_columns(conn, "orders")
+        insert_columns = [col for col in (
+            "order_id", "marketplace", "status", "total_amount", "customer_name",
+            "customer_phone", "customer_email", "delivery_method", "delivery_address",
+            "payment_method", "payment_status", "items", "tracking_number", "created_at", "updated_at"
+        ) if col in order_cols]
+        if "order_id" not in insert_columns or "items" not in insert_columns:
+            raise HTTPException(status_code=500, detail="orders table schema is not compatible")
+        reserved_columns = {
+            "order_id": order_id,
+            "marketplace": marketplace,
+            "status": status,
+            "total_amount": total_amount,
+            "customer_name": customer_name,
+            "customer_phone": customer_phone,
+            "customer_email": customer_email,
+            "delivery_method": delivery_method,
+            "delivery_address": delivery_address,
+            "payment_method": payment_method,
+            "payment_status": payment_status,
+            "items": normalize(normalized_items),
+            "tracking_number": tracking_number,
+            "created_at": created_at,
+            "updated_at": created_at,
+        }
+        values = [reserved_columns[col] for col in insert_columns]
+        placeholders = ", ".join(f"${i}" for i in range(1, len(insert_columns) + 1))
+        insert_cols_sql = ", ".join(insert_columns)
+        update_sets = ", ".join(
+            f"{col} = EXCLUDED.{col}"
+            for col in insert_columns
+            if col not in {"order_id", "created_at"}
+        )
         async with conn.transaction():
             await conn.execute(
-                """
-                INSERT INTO orders (
-                    order_id, marketplace, status, total_amount,
-                    customer_name, customer_phone, customer_email,
-                    delivery_method, delivery_address,
-                    payment_method, payment_status, items,
-                    tracking_number, created_at, updated_at
-                ) VALUES (
-                    $1, $2, $3, $4,
-                    $5, $6, $7,
-                    $8, $9,
-                    $10, $11, $12,
-                    $13, $14, $14
-                )
+                f"""
+                INSERT INTO orders ({insert_cols_sql})
+                VALUES ({placeholders})
                 ON CONFLICT (order_id) DO UPDATE SET
-                    marketplace = EXCLUDED.marketplace,
-                    status = EXCLUDED.status,
-                    total_amount = EXCLUDED.total_amount,
-                    customer_name = EXCLUDED.customer_name,
-                    customer_phone = EXCLUDED.customer_phone,
-                    customer_email = EXCLUDED.customer_email,
-                    delivery_method = EXCLUDED.delivery_method,
-                    delivery_address = EXCLUDED.delivery_address,
-                    payment_method = EXCLUDED.payment_method,
-                    payment_status = EXCLUDED.payment_status,
-                    items = EXCLUDED.items,
-                    tracking_number = EXCLUDED.tracking_number,
-                    updated_at = EXCLUDED.updated_at
+                    {update_sets}
                 """,
-                order_id,
-                marketplace,
-                status,
-                total_amount,
-                customer_name,
-                customer_phone,
-                customer_email,
-                delivery_method,
-                delivery_address,
-                payment_method,
-                payment_status,
-                normalize(normalized_items),
-                tracking_number,
-                created_at,
+                *values,
             )
 
             if await table_exists(conn, "products"):
