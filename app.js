@@ -202,7 +202,7 @@ function buildProductCard(p){
   const fallbackImg = p.fallbackImg || localFallbackImageFor(p, 0);
   return `<div class="pcard">
       ${p.badge?`<div class="pbadge ${p.bc||'or'}">${p.badge}</div>`:''}
-      <div class="pimg"><img src="${p.img}" alt="${p.name}" loading="lazy" data-fallback="${fallbackImg}" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.onerror=null;this.src=this.dataset.fallback}else{this.onerror=null;this.src='https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop'}"></div>
+      <div class="pimg"><img src="${p.img}" alt="${p.name}" loading="lazy" data-fallback="${fallbackImg}" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.onerror=()=>{this.style.display='none'};this.src=this.dataset.fallback}else{this.style.display='none'}"></div>
       <div class="pi">
         <div class="pn">${p.name}</div>
         <div class="pp-row"><span class="pp">${fmt(p.price)}</span><span class="pold">${fmt(p.old)}</span><span class="pdisc">−${disc}%</span></div>
@@ -238,7 +238,7 @@ function renderCart(){
   }
   const sub=cart.reduce((s,c)=>s+c.price*c.qty,0);
   body.innerHTML=cart.map(c=>`<div class="ci">
-    <img class="ci-img" src="${c.img}" data-fallback="${c.fallbackImg || c.img || ''}" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.onerror=null;this.src=this.dataset.fallback}else{this.onerror=null;this.src='https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop'}">
+    <img class="ci-img" src="${c.img}" data-fallback="${c.fallbackImg || c.img || ''}" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.onerror=()=>{this.style.display='none'};this.src=this.dataset.fallback}else{this.style.display='none'}">
     <div class="ci-inf">
       <div class="ci-n">${c.name}</div>
       <div class="ci-qr"><button class="cqb" onclick="chQ(${c.id},-1)">−</button><span style="min-width:20px;text-align:center;font-weight:700">${c.qty}</span><button class="cqb" onclick="chQ(${c.id},1)">+</button><span class="ci-u">${fmt(c.price)}/шт</span></div>

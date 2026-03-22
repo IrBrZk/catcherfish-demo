@@ -262,6 +262,17 @@ def fetch_stocks_for_warehouse(
     return result
 
 
+def extract_size_quantity(size: Dict[str, Any]) -> int:
+    for key in ("quantity", "stock", "amount", "remain", "available", "balance"):
+        value = size.get(key)
+        if value is not None:
+            try:
+                return max(0, int(value))
+            except (TypeError, ValueError):
+                continue
+    return 0
+
+
 def upsert_products(conn, cards: Sequence[Dict[str, Any]], price_map: Dict[int, Decimal]) -> int:
     updated = 0
     with conn.cursor() as cur:
@@ -328,6 +339,7 @@ def upsert_stocks(
     token: str,
 ) -> int:
     card_by_chrt_id: Dict[int, int] = {}
+    card_fallback_qty: Dict[int, int] = {}
     for card in cards:
         nm_id = card.get("nmID")
         if nm_id is None:
@@ -335,19 +347,40 @@ def upsert_stocks(
         for size in card.get("sizes") or []:
             chrt_id = size.get("chrtID")
             if chrt_id is not None:
-                card_by_chrt_id[int(chrt_id)] = int(nm_id)
+                chrt_id_int = int(chrt_id)
+                card_by_chrt_id[chrt_id_int] = int(nm_id)
+                card_fallback_qty[int(nm_id)] = card_fallback_qty.get(int(nm_id), 0) + extract_size_quantity(size)
 
     if not warehouses or not card_by_chrt_id:
-        return 0
+        if not card_fallback_qty:
+            return 0
+        with conn.cursor() as cur:
+            for nm_id, quantity in card_fallback_qty.items():
+                cur.execute(
+                    """
+                    INSERT INTO stocks (sku, wb_nm_id, warehouse_id, quantity, updated_at)
+                    VALUES (%s, %s, %s, %s, NOW())
+                    ON CONFLICT (sku, warehouse_id) DO UPDATE SET
+                        wb_nm_id = EXCLUDED.wb_nm_id,
+                        quantity = EXCLUDED.quantity,
+                        updated_at = NOW()
+                    """,
+                    (nm_id, nm_id, 0, quantity),
+                )
+        conn.commit()
+        return len(card_fallback_qty)
 
     chrt_ids = list(card_by_chrt_id.keys())
     total_updated = 0
+    total_nonzero = 0
 
     with conn.cursor() as cur:
         for warehouse_id in warehouses:
             stock_map = fetch_stocks_for_warehouse(session, token, warehouse_id, chrt_ids)
             for chrt_id, nm_id in card_by_chrt_id.items():
                 quantity = stock_map.get(chrt_id, 0)
+                if quantity > 0:
+                    total_nonzero += 1
                 cur.execute(
                     """
                     INSERT INTO stocks (sku, wb_nm_id, warehouse_id, quantity, updated_at)
@@ -362,6 +395,22 @@ def upsert_stocks(
                 total_updated += 1
 
     conn.commit()
+    if total_nonzero == 0 and card_fallback_qty:
+        with conn.cursor() as cur:
+            for nm_id, quantity in card_fallback_qty.items():
+                cur.execute(
+                    """
+                    INSERT INTO stocks (sku, wb_nm_id, warehouse_id, quantity, updated_at)
+                    VALUES (%s, %s, %s, %s, NOW())
+                    ON CONFLICT (sku, warehouse_id) DO UPDATE SET
+                        wb_nm_id = EXCLUDED.wb_nm_id,
+                        quantity = EXCLUDED.quantity,
+                        updated_at = NOW()
+                    """,
+                    (nm_id, nm_id, 0, quantity),
+                )
+        conn.commit()
+        return len(card_fallback_qty)
     return total_updated
 
 
