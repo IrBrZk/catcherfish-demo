@@ -1,4 +1,4 @@
-const API_BASE = window.API_BASE || 'http://103.73.35.92:8000';
+const API_BASE = 'http://103.73.35.92:8000';
 const legacyRenderAdmin = window.renderAdmin;
 let admCur = window.admCur || 'dashboard';
 let admRenderSeq = 0;
@@ -121,15 +121,15 @@ async function renderAdmin(tab) {
       const rows = data.items || [];
       const totalUnits = rows.reduce((s, r) => s + Number(r.quantity || 0), 0);
       const lowCount = rows.filter(r => Number(r.quantity || 0) < 20).length;
-      el.innerHTML = `<h2>📦 Остатки на складе <span class="sub">WB → PostgreSQL</span></h2>
+      el.innerHTML = `<h2>📦 Остатки на складе (catcherfish_db) <span class="sub">WB → PostgreSQL</span></h2>
       <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
         <div class="metric"><div class="mv">${totalUnits.toLocaleString('ru-RU')}</div><div class="ml">Всего единиц</div></div>
         <div class="metric"><div class="mv" style="color:var(--red)">${lowCount}</div><div class="ml">Низкий остаток</div></div>
         <div class="metric"><div class="mv">${rows.length}</div><div class="ml">Строк</div></div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
-        <button class="adm-btn" onclick="syncStockNow()">🔄 Обновить</button>
-        <div class="sync-status"><span class="sync-dot"></span>Данные из API /stocks</div>
+        <button class="adm-btn" onclick="syncStockNow()">🔄 Синхронизировать с WB/Ozon</button>
+        <div class="sync-status"><span class="sync-dot"></span>PostgreSQL подключён · catcherfish_db · авто-синхр. каждые 15 мин</div>
       </div>
       <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Товар</th><th>Склад</th><th>Остаток</th><th>SKU</th></tr></thead><tbody>
       ${rows.length ? rows.map(r => {
