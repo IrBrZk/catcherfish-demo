@@ -31,6 +31,19 @@ WB_WAREHOUSES_URL = "https://marketplace-api.wildberries.ru/api/v3/warehouses"
 WB_STOCKS_URL = "https://marketplace-api.wildberries.ru/api/v3/stocks/{warehouse_id}"
 TELEGRAM_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
+# TODO: OZON_CLIENT_ID and OZON_API_KEY in .env
+# TODO: MOYSKLAD_TOKEN in .env
+# Planned endpoints:
+# - Ozon: POST https://api-seller.ozon.ru/v2/product/list
+# - Ozon: POST https://api-seller.ozon.ru/v2/product/info/list
+# - Ozon: POST https://api-seller.ozon.ru/v1/product/info/stocks
+# - MoySklad: GET https://api.moysklad.ru/api/remap/1.2/entity/product
+# - MoySklad: GET https://api.moysklad.ru/api/remap/1.2/entity/store
+# - MoySklad: GET https://api.moysklad.ru/api/remap/1.2/entity/stock/all
+# Comparison rule:
+# - Compare MoySklad vs WB vs Ozon stock levels
+# - Notify Telegram when discrepancy is > 10%
+
 
 class SyncError(RuntimeError):
     pass
@@ -143,6 +156,7 @@ def ensure_tables(conn) -> None:
                 warehouse TEXT NOT NULL,
                 warehouse_id BIGINT,
                 quantity INTEGER NOT NULL DEFAULT 0,
+                moysklad_qty INTEGER DEFAULT NULL,
                 source VARCHAR(20) NOT NULL DEFAULT 'manual',
                 stock_type VARCHAR(20) NOT NULL DEFAULT 'fbs',
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -153,6 +167,7 @@ def ensure_tables(conn) -> None:
         cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS warehouse TEXT NOT NULL DEFAULT 'manual';")
         cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS source VARCHAR(20) NOT NULL DEFAULT 'manual';")
         cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS stock_type VARCHAR(20) NOT NULL DEFAULT 'fbs';")
+        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS moysklad_qty INTEGER DEFAULT NULL;")
         cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 0;")
         cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();")
         cur.execute("ALTER TABLE stocks ALTER COLUMN sku TYPE TEXT USING sku::text;")

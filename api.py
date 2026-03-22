@@ -212,6 +212,7 @@ async def get_stocks(
             "s.wb_nm_id AS wb_nm_id" if "wb_nm_id" in stock_cols else "NULL::text AS wb_nm_id",
             f"s.{warehouse_key} AS warehouse" if warehouse_key else "NULL::text AS warehouse",
             f"s.{qty_key} AS quantity" if qty_key else "0 AS quantity",
+            "s.moysklad_qty AS moysklad_qty" if "moysklad_qty" in stock_cols else "NULL::integer AS moysklad_qty",
             "s.warehouse_id AS warehouse_id" if "warehouse_id" in stock_cols else "NULL::bigint AS warehouse_id",
             f"s.{source_key} AS source" if source_key else "'manual' AS source",
             f"s.{stock_type_key} AS stock_type" if stock_type_key else "'fbs' AS stock_type",
@@ -236,6 +237,7 @@ async def get_stocks(
         item.setdefault("warehouse", item.get("warehouse") or item.get("warehouse_id") or "—")
         item.setdefault("source", item.get("source") or "manual")
         item.setdefault("stock_type", item.get("stock_type") or "fbs")
+        item.setdefault("moysklad_qty", item.get("moysklad_qty"))
         item.setdefault("quantity", item.get("quantity", item.get("stock", item.get("balance", item.get("qty", 0)))))
         item["category"] = infer_category(item)
         items.append(item)
