@@ -412,7 +412,6 @@ def upsert_stocks(
     token: str,
 ) -> int:
     card_by_chrt_id: Dict[int, int] = {}
-    card_fallback_qty: Dict[int, int] = {}
     for card in cards:
         nm_id = card.get("nmID")
         if nm_id is None:
@@ -423,36 +422,12 @@ def upsert_stocks(
                 chrt_id_int = int(chrt_id)
                 quantity = extract_size_quantity(size)
                 card_by_chrt_id[chrt_id_int] = int(nm_id)
-                if quantity > 0:
-                    card_fallback_qty[int(nm_id)] = card_fallback_qty.get(int(nm_id), 0) + quantity
 
     if not warehouses or not card_by_chrt_id:
-        if not card_fallback_qty:
-            return 0
-        with conn.cursor() as cur:
-            for nm_id, quantity in card_fallback_qty.items():
-                if quantity <= 0:
-                    continue
-                cur.execute(
-                    """
-                    INSERT INTO stocks (sku, wb_nm_id, warehouse, warehouse_id, quantity, source, stock_type, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-                    ON CONFLICT (sku, warehouse) DO UPDATE SET
-                        wb_nm_id = EXCLUDED.wb_nm_id,
-                        warehouse_id = EXCLUDED.warehouse_id,
-                        quantity = EXCLUDED.quantity,
-                        source = EXCLUDED.source,
-                        stock_type = EXCLUDED.stock_type,
-                        updated_at = NOW()
-                    """,
-                    (str(nm_id), str(nm_id), "manual", None, quantity, "manual", "own"),
-                )
-        conn.commit()
-        return len(card_fallback_qty)
+        return 0
 
     chrt_ids = list(card_by_chrt_id.keys())
     total_updated = 0
-    total_nonzero = 0
 
     with conn.cursor() as cur:
         for warehouse in warehouses:
@@ -463,7 +438,6 @@ def upsert_stocks(
             for chrt_id, nm_id in card_by_chrt_id.items():
                 quantity = stock_map.get(chrt_id, 0)
                 if quantity > 0:
-                    total_nonzero += 1
                     warehouse_qty[nm_id] = warehouse_qty.get(nm_id, 0) + quantity
 
             for nm_id, quantity in warehouse_qty.items():
@@ -486,27 +460,6 @@ def upsert_stocks(
                 total_updated += 1
 
     conn.commit()
-    if total_nonzero == 0 and card_fallback_qty:
-        with conn.cursor() as cur:
-            for nm_id, quantity in card_fallback_qty.items():
-                if quantity <= 0:
-                    continue
-                cur.execute(
-                    """
-                    INSERT INTO stocks (sku, wb_nm_id, warehouse, warehouse_id, quantity, source, stock_type, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-                    ON CONFLICT (sku, warehouse) DO UPDATE SET
-                        wb_nm_id = EXCLUDED.wb_nm_id,
-                        warehouse_id = EXCLUDED.warehouse_id,
-                        quantity = EXCLUDED.quantity,
-                        source = EXCLUDED.source,
-                        stock_type = EXCLUDED.stock_type,
-                        updated_at = NOW()
-                    """,
-                    (str(nm_id), str(nm_id), "manual", None, quantity, "manual", "own"),
-                )
-        conn.commit()
-        return len(card_fallback_qty)
     return total_updated
 
 
