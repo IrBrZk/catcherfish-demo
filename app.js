@@ -87,7 +87,7 @@ async function loadCatalogFromAPI() {
     const resp = await fetch(`${window.API_BASE}/products?limit=100`);
     const data = await resp.json();
     const items = (Array.isArray(data.items) ? data.items : [])
-      .filter(p => String(p.source || '').toLowerCase() === 'wb' && Number(p.stock || p.quantity || 0) > 0)
+      .filter(p => Number(p.stock || p.quantity || 0) > 0)
       .slice(0, 60);
     if (!items.length) return;
     P = items.map((p, idx) => {
@@ -116,12 +116,12 @@ async function loadCatalogFromAPI() {
 
 const catalogSections=[
   {key:'construction',title:'🏗 Стройка',cats:['construction']},
-  {key:'fish',title:'🎣 Рыболовные товары',cats:['fishing','lure']},
-  {key:'tent',title:'⛺ Туристическое',cats:['tent']},
-  {key:'gas',title:'⛽ Газовое снаряжение — со склада в Челябинске',cats:['gas']},
-  {key:'boat',title:'🚣 Лодки',cats:['boat']},
+  {key:'fish',title:'🎣 Рыбалка',cats:['fishing','lure']},
+  {key:'tent',title:'⛺ Туризм',cats:['tent']},
+  {key:'gas',title:'⛽ Снаряжение',cats:['gas']},
+  {key:'boat',title:'🧭 Транспорт',cats:['boat']},
 ];
-const catTitles={all:'Все товары',construction:'Стройка',fishing:'Рыболовные',lure:'Рыболовные',tent:'Туристическое',gas:'Газовое',boat:'Лодки'};
+const catTitles={all:'Все товары',construction:'Стройка',fishing:'Рыбалка',lure:'Оснастка',tent:'Туризм',gas:'Снаряжение',boat:'Транспорт'};
 
 // ── PAGES ─────────────────────────────────────────────────────────────────
 function showPage(name){
@@ -538,7 +538,7 @@ function renderAdmin(tab){
     ${P.map(p=>`<tr>
       <td><img src="${p.img}" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--border);border-radius:3px" onerror="this.style.display='none'"></td>
       <td><div class="bold" style="font-size:13px">${p.name}</div></td>
-      <td style="font-size:12px;color:var(--muted)">${{fishing:'Рыболовные',gas:'Газовое',lure:'Снасти',boat:'Лодки',tent:'Туризм'}[p.cat]}</td>
+      <td style="font-size:12px;color:var(--muted)">${{fishing:'Рыбалка',gas:'Снаряжение',lure:'Оснастка',boat:'Транспорт',tent:'Туризм'}[p.cat]}</td>
       <td class="bold">${fmt(p.price)}</td>
       <td style="font-weight:700;color:${p.stock<20?'var(--red)':p.stock<100?'var(--yellow)':'var(--green)'}">${p.stock}</td>
       <td><span class="stbadge st-send">✓ Опубликован</span></td>

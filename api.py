@@ -109,6 +109,42 @@ def first_photo_url(photos: Any) -> Optional[str]:
     return None
 
 
+def source_group(source: Any) -> str:
+    value = str(source or "").strip().lower()
+    if value in {"wb", "ozon"}:
+        return "marketplace"
+    if value in {"local", "warehouse"}:
+        return "warehouse"
+    return "import"
+
+
+def product_select_exprs(product_cols: set[str]) -> Dict[str, str]:
+    wb_col = "wb_nm_id" if "wb_nm_id" in product_cols else "wb_nmID" if "wb_nmID" in product_cols else None
+    category_col = "category" if "category" in product_cols else "category_name" if "category_name" in product_cols else None
+    photos_col = "photos" if "photos" in product_cols else "images" if "images" in product_cols else None
+    price_col = "price" if "price" in product_cols else "price_wb" if "price_wb" in product_cols else "price_retail" if "price_retail" in product_cols else None
+    stock_col = "stock" if "stock" in product_cols else "stock_available" if "stock_available" in product_cols else "stock_total" if "stock_total" in product_cols else None
+    price_buy_col = "price_buy" if "price_buy" in product_cols else None
+    price_retail_col = "price_retail" if "price_retail" in product_cols else None
+    price_ozon_col = "price_ozon" if "price_ozon" in product_cols else None
+    price_wb_col = "price_wb" if "price_wb" in product_cols else None
+    source_col = "source" if "source" in product_cols else None
+    updated_col = "updated_at" if "updated_at" in product_cols else None
+    return {
+        "wb": wb_col or "NULL::text",
+        "category": category_col or "NULL::text",
+        "photos": photos_col or "NULL::jsonb",
+        "price": price_col or "NULL::numeric",
+        "stock": stock_col or "0",
+        "price_buy": price_buy_col or "NULL::numeric",
+        "price_retail": price_retail_col or "NULL::numeric",
+        "price_ozon": price_ozon_col or "NULL::numeric",
+        "price_wb": price_wb_col or "NULL::numeric",
+        "source": source_col or "'manual'",
+        "updated_at": updated_col or "NOW()",
+    }
+
+
 async def get_pool() -> asyncpg.Pool:
     global pool
     if pool is None:
@@ -175,18 +211,35 @@ async def get_products(
 ):
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT sku, wb_nm_id, name, description, brand, category, price_old, stock, photos, price, source, updated_at
+        product_cols = await table_columns(conn, "products")
+        exprs = product_select_exprs(product_cols)
+        query = f"""
+            SELECT
+                sku,
+                {exprs['wb']} AS wb_nm_id,
+                name,
+                description,
+                brand,
+                {exprs['category']} AS category,
+                {exprs['price_buy']} AS price_buy,
+                {exprs['price_retail']} AS price_retail,
+                {exprs['price_ozon']} AS price_ozon,
+                {exprs['price_wb']} AS price_wb,
+                {exprs['stock']} AS stock,
+                {exprs['photos']} AS photos,
+                {exprs['price']} AS price,
+                {exprs['source']} AS source,
+                {exprs['updated_at']} AS updated_at
             FROM products
             ORDER BY updated_at DESC, sku DESC
-            """
-        )
+        """
+        rows = await conn.fetch(query)
     items = []
     for row in rows:
         item = row_to_dict(row)
         item["category"] = item.get("category") or infer_category(item)
         item["photo_url"] = first_photo_url(item.get("photos"))
+        item["source_group"] = source_group(item.get("source"))
         items.append(item)
 
     if category:
@@ -208,19 +261,35 @@ async def get_products(
 async def get_product(sku: str):
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            SELECT sku, wb_nm_id, name, description, brand, category, price_old, stock, photos, price, source, updated_at
+        product_cols = await table_columns(conn, "products")
+        exprs = product_select_exprs(product_cols)
+        query = f"""
+            SELECT
+                sku,
+                {exprs['wb']} AS wb_nm_id,
+                name,
+                description,
+                brand,
+                {exprs['category']} AS category,
+                {exprs['price_buy']} AS price_buy,
+                {exprs['price_retail']} AS price_retail,
+                {exprs['price_ozon']} AS price_ozon,
+                {exprs['price_wb']} AS price_wb,
+                {exprs['stock']} AS stock,
+                {exprs['photos']} AS photos,
+                {exprs['price']} AS price,
+                {exprs['source']} AS source,
+                {exprs['updated_at']} AS updated_at
             FROM products
             WHERE sku = $1
-            """,
-            sku,
-        )
+        """
+        row = await conn.fetchrow(query, sku)
     if not row:
         raise HTTPException(status_code=404, detail="Product not found")
     item = row_to_dict(row)
     item["category"] = item.get("category") or infer_category(item)
     item["photo_url"] = first_photo_url(item.get("photos"))
+    item["source_group"] = source_group(item.get("source"))
     return item
 
 
@@ -236,6 +305,7 @@ async def get_stocks(
         if not await table_exists(conn, "stocks"):
             return {"items": [], "by_source": {}, "total": 0, "limit": limit, "offset": offset}
         stock_cols = await table_columns(conn, "stocks")
+        product_cols = await table_columns(conn, "products") if await table_exists(conn, "products") else set()
         if "sku" not in stock_cols:
             return {"items": [], "by_source": {}, "total": 0, "limit": limit, "offset": offset}
         qty_key = next((name for name in ("quantity", "stock", "balance", "qty") if name in stock_cols), None)
@@ -243,6 +313,7 @@ async def get_stocks(
         warehouse_key = "warehouse" if "warehouse" in stock_cols else None
         source_key = "source" if "source" in stock_cols else None
         stock_type_key = "stock_type" if "stock_type" in stock_cols else None
+        product_wb_key = "wb_nm_id" if "wb_nm_id" in product_cols else "wb_nmID" if "wb_nmID" in product_cols else None
         select_parts = [
             "s.sku AS sku",
             "s.wb_nm_id AS wb_nm_id" if "wb_nm_id" in stock_cols else "NULL::text AS wb_nm_id",
@@ -262,7 +333,7 @@ async def get_stocks(
             f"""
             SELECT {', '.join(select_parts)}
             FROM stocks s
-            LEFT JOIN products p ON p.sku::text = s.sku OR p.wb_nm_id::text = s.wb_nm_id
+            LEFT JOIN products p ON p.sku::text = s.sku{f' OR p.{product_wb_key}::text = s.wb_nm_id' if product_wb_key else ''}
             ORDER BY s.updated_at DESC, s.sku DESC
             """
         )
@@ -272,6 +343,7 @@ async def get_stocks(
         item.setdefault("product_name", item.get("name") or item.get("sku"))
         item.setdefault("warehouse", item.get("warehouse") or item.get("warehouse_id") or "—")
         item.setdefault("source", item.get("source") or "manual")
+        item["source_group"] = source_group(item.get("source"))
         item.setdefault("stock_type", item.get("stock_type") or "fbs")
         item.setdefault("moysklad_qty", item.get("moysklad_qty"))
         item.setdefault("quantity", item.get("quantity", item.get("stock", item.get("balance", item.get("qty", 0)))))
@@ -290,14 +362,26 @@ async def get_stocks(
         ]
 
     by_source: Dict[str, Dict[str, int]] = {}
+    by_source_group: Dict[str, Dict[str, int]] = {}
     for item in items:
         src = str(item.get("source") or "manual").lower()
         bucket = by_source.setdefault(src, {"count": 0, "units": 0})
         bucket["count"] += 1
         bucket["units"] += int(item.get("quantity") or 0)
+        group = str(item.get("source_group") or source_group(src))
+        grouped_bucket = by_source_group.setdefault(group, {"count": 0, "units": 0})
+        grouped_bucket["count"] += 1
+        grouped_bucket["units"] += int(item.get("quantity") or 0)
 
     total = sum(int(item.get("quantity") or 0) for item in items)
-    return {"items": items[offset:offset + limit], "by_source": by_source, "total": total, "limit": limit, "offset": offset}
+    return {
+        "items": items[offset:offset + limit],
+        "by_source": by_source,
+        "by_source_group": by_source_group,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @app.get("/orders")

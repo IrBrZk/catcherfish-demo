@@ -49,7 +49,7 @@
 <div class="mob-nav">
   <div class="mob-nav-inner">
     <button class="mob-nav-btn active" onclick="filterCat('all');showPage('catalog');setMobActive(this)">☰ Каталог</button>
-    <button class="mob-nav-btn" onclick="filterCat('gas');showPage('catalog');setMobActive(this)">⛽ Газ</button>
+    <button class="mob-nav-btn" onclick="filterCat('gas');showPage('catalog');setMobActive(this)">⛽ Снаряжение</button>
     <button class="mob-nav-btn" onclick="filterCat('tent');showPage('catalog');setMobActive(this)">⛺ Туризм</button>
     <button class="mob-nav-btn" onclick="showPage('delivery');setMobActive(this)">🚚</button>
     <button class="mob-nav-btn" onclick="showPage('contacts');setMobActive(this)">📞</button>
@@ -62,11 +62,11 @@
 <div class="mainnav">
   <div class="mainnav-inner">
     <button class="mni act" id="nav-cat" onclick="filterCat('all');showPage('catalog')">☰ Каталог</button>
-    <button class="mni" onclick="filterCat('fishing');showPage('catalog')">🎣 Рыболовные</button>
+    <button class="mni" onclick="filterCat('fishing');showPage('catalog')">🎣 Рыбалка</button>
     <button class="mni" onclick="filterCat('tent');showPage('catalog')">⛺ Туризм</button>
-    <button class="mni" onclick="filterCat('gas');showPage('catalog')">⛽ Газовое</button>
-    <button class="mni" onclick="filterCat('lure');showPage('catalog')">🪝 Снасти</button>
-    <button class="mni" onclick="filterCat('boat');showPage('catalog')">🚣 Лодки</button>
+    <button class="mni" onclick="filterCat('gas');showPage('catalog')">⛽ Снаряжение</button>
+    <button class="mni" onclick="filterCat('lure');showPage('catalog')">🪝 Оснастка</button>
+    <button class="mni" onclick="filterCat('boat');showPage('catalog')">🧭 Транспорт</button>
     <button class="mni" onclick="showPage('delivery')">🚚 Доставка</button>
     <button class="mni" onclick="showPage('payment')">💳 Оплата</button>
     <button class="mni" onclick="showPage('contacts')">📞 Контакты</button>
@@ -94,10 +94,10 @@
         <div class="sb-t">Каталог</div>
         <div class="sb-cats" id="sbcats">
       <a href="#" class="act" onclick="filterCat('all');return false"><span class="cat-ico cat-all">📦</span>Все товары<span class="cat-n">12</span></a>
-      <a href="#" onclick="filterCat('fishing');return false"><span class="cat-ico cat-fishing">🎣</span>Рыболовные<span class="cat-n">5</span></a>
-          <a href="#" onclick="filterCat('gas');return false"><span class="cat-ico cat-gas">⛽</span>Газовое<span class="cat-n">5</span></a>
-          <a href="#" onclick="filterCat('lure');return false"><span class="cat-ico cat-lure">⚓</span>Блёсны/снасти<span class="cat-n">2</span></a>
-          <a href="#" onclick="filterCat('boat');return false"><span class="cat-ico cat-boat">🚣</span>Лодки<span class="cat-n">2</span></a>
+      <a href="#" onclick="filterCat('fishing');return false"><span class="cat-ico cat-fishing">🎣</span>Рыбалка<span class="cat-n">5</span></a>
+          <a href="#" onclick="filterCat('gas');return false"><span class="cat-ico cat-gas">⛽</span>Снаряжение<span class="cat-n">5</span></a>
+          <a href="#" onclick="filterCat('lure');return false"><span class="cat-ico cat-lure">⚓</span>Оснастка<span class="cat-n">2</span></a>
+          <a href="#" onclick="filterCat('boat');return false"><span class="cat-ico cat-boat">🚣</span>Транспорт<span class="cat-n">2</span></a>
           <a href="#" onclick="filterCat('tent');return false"><span class="cat-ico cat-tent">⛺</span>Туризм<span class="cat-n">2</span></a>
         </div>
       </div>
@@ -234,7 +234,7 @@
     <div class="admin-sidebar">
       <div class="adm-brand">
         <div class="adm-brand-ico">⚙</div>
-        <div><span>CatcherFish Admin</span><small>PostgreSQL MVP + WB</small></div>
+        <div><span>CatcherFish Admin</span><small>PostgreSQL MVP + источники</small></div>
       </div>
       <div class="adm-section-label">Каталог</div>
       <div class="adm-nav">
@@ -251,7 +251,7 @@
       </div>
       <div class="adm-section-label">Сервисы</div>
       <div class="adm-nav">
-        <a onclick="admTab('integrations',this)"><span>🔗</span> WB ↔ PostgreSQL</a>
+        <a onclick="admTab('integrations',this)"><span>🔗</span> Источники ↔ PostgreSQL</a>
         <a onclick="admTab('ykassa',this)"><span>💳</span> ЮKassa</a>
         <a onclick="admTab('telegram',this)"><span>✈</span> Telegram-канал</a>
       </div>
@@ -268,7 +268,7 @@
   <div class="footer-inner">
     <div><div class="footer-brand"><strong style="font-size:16px;color:#fff">🎣 CatcherFish</strong><p>Товары для рыбалки оптом и в розницу с 2010 года. Газовое снаряжение со склада в Челябинске.</p></div><div class="pay-icons"><img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/visa-50x30.png" alt="" onerror="this.style.display='none'"><img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/master-50x30.png" alt="" onerror="this.style.display='none'"><img src="https://catcherfish.ru/image/cache/catalog/revolution/payment/sberbank-50x30.png" alt="" onerror="this.style.display='none'"></div></div>
     <div><h4>Покупателям</h4><ul><li><a href="#" onclick="showPage('delivery');return false">Доставка</a></li><li><a href="#" onclick="showPage('payment');return false">Оплата</a></li><li><a href="#" onclick="showPage('contacts');return false">Контакты</a></li><li><a href="#">Политика конфиденциальности</a></li></ul></div>
-    <div><h4>Каталог</h4><ul><li><a href="#" onclick="filterCat('fishing');showPage('catalog');return false">Грузила</a></li><li><a href="#" onclick="filterCat('lure');showPage('catalog');return false">Блёсны</a></li><li><a href="#" onclick="filterCat('boat');showPage('catalog');return false">Лодки</a></li><li><a href="#" onclick="filterCat('gas');showPage('catalog');return false">Горелки</a></li></ul></div>
+    <div><h4>Каталог</h4><ul><li><a href="#" onclick="filterCat('fishing');showPage('catalog');return false">Рыбалка</a></li><li><a href="#" onclick="filterCat('lure');showPage('catalog');return false">Оснастка</a></li><li><a href="#" onclick="filterCat('boat');showPage('catalog');return false">Транспорт</a></li><li><a href="#" onclick="filterCat('gas');showPage('catalog');return false">Снаряжение</a></li></ul></div>
     <div><h4>Контакты</h4><ul><li><a href="tel:89036163935">+7 (903) 616-39-35</a></li><li><a href="mailto:zakaz@catcherfish.ru">zakaz@catcherfish.ru</a></li><li>Красногорск, Пионерская 1</li><li>Склад: Челябинск</li></ul></div>
   </div>
   <div class="footer-copy">© CatcherFish 2010–2025 · Все права защищены · <a href="#" style="color:rgba(255,255,255,.3)">Политика ПД</a></div>

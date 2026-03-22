@@ -120,8 +120,14 @@ def infer_category_name(card: Dict[str, Any]) -> str:
         for field in ("title", "description", "brand")
     ).lower()
     if any(k in text for k in ("горел", "плитк", "газ", "ns 509", "ns 502", "ns100", "ns06", "m-100")):
-        return "Стройка"
-    return "Стройка"
+        return "Снаряжение"
+    if any(k in text for k in ("палат", "обогрев", "shelter", "camp", "турист")):
+        return "Туризм"
+    if any(k in text for k in ("лодк", "boat")):
+        return "Транспорт"
+    if any(k in text for k in ("блесн", "снаст", "грузил", "вертлюг", "карабин", "отводн", "fishing")):
+        return "Рыбалка"
+    return "Каталог"
 
 
 def card_total_stock(card: Dict[str, Any]) -> int:
