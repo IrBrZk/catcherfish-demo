@@ -222,3 +222,8 @@ window.admTab = admTab;
 window.renderAdmin = renderAdmin;
 window.syncNow = syncNow;
 window.syncStockNow = syncStockNow;
+
+const adminPage = document.getElementById('page-admin');
+if (adminPage && adminPage.classList.contains('active')) {
+  setTimeout(() => renderAdmin(window.admCur || 'dashboard'), 0);
+}
