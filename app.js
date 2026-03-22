@@ -1,5 +1,5 @@
 // ── PRODUCTS ──────────────────────────────────────────────────────────────
-const P=[
+const LOCAL_P=[
   {id:1,cat:'fishing',name:'Грузила чебурашки разборные (10 шт)',price:185,old:240,img:'https://catcherfish.ru/image/cache/catalog/gruzila_cheburashki_razbornye-300x300.jpg',stock:847,badge:'Хит',bc:'or'},
   {id:2,cat:'fishing',name:'Грузила для отводного поводка (15 шт)',price:210,old:280,img:'https://catcherfish.ru/image/cache/catalog/gruzila_dlya_otvodnogo_povodka-300x300.jpg',stock:623,badge:'Хит',bc:'or'},
   {id:3,cat:'lure',name:'Блесна колебалка Catcher 7г (5 шт)',price:320,old:450,img:'https://catcherfish.ru/image/cache/catalog/koleblyushiesya_blesny_Catcher-300x300.jpg',stock:312,badge:null},
@@ -13,6 +13,7 @@ const P=[
   {id:11,cat:'tent',name:'Палатка кемпинговая Catcher 4P',price:8200,old:9800,img:'https://images.unsplash.com/photo-1423655156442-ccc11daa4e99?w=300&h=300&fit=crop',stock:38,badge:'Новинка'},
   {id:12,cat:'tent',name:'Туристическая палатка Shelter Pro 2',price:4600,old:5600,img:'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=300&h=300&fit=crop&auto=format',stock:64,badge:'Новый'},
 ];
+let P=[...LOCAL_P];
 
 // ── STATE ─────────────────────────────────────────────────────────────────
 let cart=[],delCost=350,orderN=0,curCat='all',curSearch='',curSort='def';
@@ -35,6 +36,40 @@ let syncLog=[
 ];
 
 const fmt=n=>n.toLocaleString('ru-RU')+' ₽';
+
+function inferCatFromProduct(p){
+  const text=`${p.name||''} ${p.description||''} ${p.brand||''}`.toLowerCase();
+  if (/(горел|плитк|gas|ns 509|ns 502|ns100|ns06|m-100)/.test(text)) return 'gas';
+  if (/(палат|обогрев|shelter|camp|турист)/.test(text)) return 'tent';
+  if (/(лодк|boat)/.test(text)) return 'boat';
+  if (/(блесн|снаст|lure)/.test(text)) return 'lure';
+  if (/(грузил|вертлюг|карабин|отводн|fishing)/.test(text)) return 'fishing';
+  return 'fishing';
+}
+
+async function loadCatalogFromAPI() {
+  try {
+    const resp = await fetch(`${window.API_BASE}/products?limit=100`);
+    const data = await resp.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) return;
+    P = items.map(p => ({
+      id: p.id ?? p.sku ?? p.wb_nm_id,
+      cat: p.category || inferCatFromProduct(p),
+      name: p.name,
+      price: Number(p.price || 0),
+      old: Number(p.price_old || p.price || 0),
+      img: (Array.isArray(p.photos) && p.photos[0]) || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop',
+      stock: Number(p.stock || p.quantity || 0),
+      badge: null,
+      bc: 'or'
+    }));
+    renderCatalog();
+  } catch (e) {
+    console.warn('API недоступен, используем локальные данные');
+    P = [...LOCAL_P];
+  }
+}
 
 const catalogSections=[
   {key:'fish',title:'🎣 Рыболовные товары',cats:['fishing','lure']},
@@ -482,3 +517,4 @@ function syncStockNow(){
 // ── INIT ──────────────────────────────────────────────────────────────────
 renderCatalog();
 updCart();
+loadCatalogFromAPI();
