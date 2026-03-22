@@ -31,7 +31,7 @@ let clients=[
 let syncLog=[
   {time:'19.03 12:01',event:'Остатки синхронизированы',status:'ok'},
   {time:'19.03 11:31',event:'Цены обновлены (10 товаров)',status:'ok'},
-  {time:'19.03 10:00',event:'Заказ CF-0001 передан в МойСклад',status:'ok'},
+  {time:'19.03 10:00',event:'Заказ CF-0001 передан в систему',status:'ok'},
   {time:'18.03 18:45',event:'Новый клиент добавлен',status:'ok'},
 ];
 
@@ -292,7 +292,7 @@ function placeOrder(){
   const exc=clients.find(c=>c.phone===ph);
   if(exc){exc.orders++;exc.total+=order.total;exc.last=order.date;}
   else clients.push({name:n,phone:ph,orders:1,total:order.total,last:order.date,type:'ret'});
-  syncLog.unshift({time:order.date,event:`Заказ ${num} создан и передан в МойСклад`,status:'ok'});
+  syncLog.unshift({time:order.date,event:`Заказ ${num} создан и передан в систему`,status:'ok'});
   cart=[];updCart();renderCatalog();closeMod();
   document.getElementById('snum').textContent='#'+num;
   document.getElementById('succ-ov').classList.add('open');
@@ -335,7 +335,7 @@ function renderAdmin(tab){
     <div class="metrics">
       <div class="metric"><div class="mv" style="color:var(--orange2)">${fmt(totalRev)}</div><div class="ml">Выручка (все заказы)</div><div class="md up">↑ +${totalOrds} заказов</div></div>
       <div class="metric"><div class="mv">${totalOrds}</div><div class="ml">Заказов всего</div><div class="md ${newOrds?'up':'nu'}">${newOrds} новых</div></div>
-      <div class="metric"><div class="mv">${totalOrds?fmt(Math.round(totalRev/totalOrds)):0}</div><div class="ml">Средний чек</div><div class="md nu">InSales метрика</div></div>
+      <div class="metric"><div class="mv">${totalOrds?fmt(Math.round(totalRev/totalOrds)):0}</div><div class="ml">Средний чек</div><div class="md nu">Операционная метрика</div></div>
       <div class="metric"><div class="mv">${clients.length}</div><div class="ml">Клиентов в базе</div><div class="md up">↑ +${clients.filter(c=>c.type==='whl').length} оптовых</div></div>
     </div>
     <div class="chart-area"><h3>📈 Выручка по каналам (симуляция)</h3>
@@ -360,10 +360,10 @@ function renderAdmin(tab){
   }
 
   else if(admCur==='orders'){
-    el.innerHTML=`<h2>📋 Заказы (InSales)</h2>
+    el.innerHTML=`<h2>📋 Заказы</h2>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       <button class="adm-btn" onclick="toast('Экспорт в Excel запущен')">⬇ Экспорт Excel</button>
-      <button class="adm-btn" onclick="toast('Данные обновлены из InSales')">🔄 Обновить</button>
+      <button class="adm-btn" onclick="toast('Данные обновлены')">🔄 Обновить</button>
     </div>
     ${!orders.length?'<div style="padding:40px;text-align:center;color:var(--muted)">Заказов пока нет — оформите первый в каталоге</div>':
     `<div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>№</th><th>Клиент</th><th>Товары</th><th>Итого</th><th>Оплата</th><th>Статус</th><th>Дата</th><th>Действие</th></tr></thead><tbody>
@@ -387,15 +387,15 @@ function renderAdmin(tab){
 
   else if(admCur==='stock'){
     const lowCount=P.filter(p=>p.stock<20).length;
-    el.innerHTML=`<h2>📦 Остатки на складе (МойСклад)</h2>
+    el.innerHTML=`<h2>📦 Остатки на складе</h2>
     <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
       <div class="metric"><div class="mv">${P.reduce((s,p)=>s+p.stock,0).toLocaleString()}</div><div class="ml">Всего единиц</div></div>
       <div class="metric"><div class="mv" style="color:var(--red)">${lowCount}</div><div class="ml">Позиций с низким остатком</div><div class="md dn">Требуют внимания</div></div>
       <div class="metric"><div class="mv">${P.length}</div><div class="ml">SKU в каталоге</div></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
-      <button class="adm-btn" onclick="syncStockNow()">🔄 Синхронизировать с InSales</button>
-      <div class="sync-status"><span class="sync-dot"></span>МойСклад подключён · авто-синхр. каждые 15 мин</div>
+      <button class="adm-btn" onclick="syncStockNow()">🔄 Обновить остатки</button>
+      <div class="sync-status"><span class="sync-dot"></span>PostgreSQL подключён · авто-синхр. каждые 15 мин</div>
     </div>
     <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Товар</th><th>Склад</th><th>Остаток</th><th>Остаток</th><th>Цена опт.</th><th>Маржа</th><th>Синхр.</th></tr></thead><tbody>
     ${P.map(p=>{
@@ -417,7 +417,7 @@ function renderAdmin(tab){
 
   else if(admCur==='clients'){
     const totalClientRev=clients.reduce((s,c)=>s+c.total,0);
-    el.innerHTML=`<h2>👥 Клиенты (InSales CRM)</h2>
+    el.innerHTML=`<h2>👥 Клиенты</h2>
     <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
       <div class="metric"><div class="mv">${clients.length}</div><div class="ml">Клиентов в базе</div></div>
       <div class="metric"><div class="mv">${clients.filter(c=>c.type==='whl').length}</div><div class="ml">Оптовых</div></div>
@@ -437,17 +437,17 @@ function renderAdmin(tab){
   }
 
   else if(admCur==='sync'){
-    el.innerHTML=`<h2>🔄 Синхронизация (МойСклад ↔ InSales)</h2>
+    el.innerHTML=`<h2>🔄 Синхронизация</h2>
     <div class="integration-row">
       <div class="intg-card">
-        <h3><div class="intg-logo ins">IS</div>InSales</h3>
+        <h3><div class="intg-logo ins">IS</div>Витрина</h3>
         <div class="intg-stat"><strong>Статус:</strong> Подключён ✅<br><strong>Тариф:</strong> Бизнес (API активен)<br><strong>Магазин:</strong> catcherfish.ru<br><strong>Товаров выгружено:</strong> ${P.length}</div>
-        <div class="sync-row"><div class="sync-status"><span class="sync-dot"></span>Онлайн</div><button class="adm-btn sm" onclick="syncNow('InSales')">Синхронизировать</button></div>
+        <div class="sync-row"><div class="sync-status"><span class="sync-dot"></span>Онлайн</div><button class="adm-btn sm" onclick="syncNow('Витрина')">Синхронизировать</button></div>
       </div>
       <div class="intg-card">
-        <h3><div class="intg-logo ms">МС</div>МойСклад</h3>
+        <h3><div class="intg-logo ms">МС</div>Склад</h3>
         <div class="intg-stat"><strong>Статус:</strong> Подключён ✅<br><strong>Тариф:</strong> Базовый (API активен)<br><strong>Склад:</strong> Челябинск + Красногорск<br><strong>Синхр. каждые:</strong> 15 мин</div>
-        <div class="sync-row"><div class="sync-status"><span class="sync-dot"></span>Онлайн</div><button class="adm-btn sm" onclick="syncNow('МойСклад')">Принудительно</button></div>
+        <div class="sync-row"><div class="sync-status"><span class="sync-dot"></span>Онлайн</div><button class="adm-btn sm" onclick="syncNow('Склад')">Принудительно</button></div>
       </div>
     </div>
     <div class="adm-table-wrap"><div class="adm-table-head"><h3>Лог синхронизации</h3><button class="adm-btn sm" onclick="syncNow('все системы')">🔄 Запустить всё</button></div>
@@ -491,8 +491,8 @@ function renderAdmin(tab){
   else if(admCur==='integrations'){
     el.innerHTML=`<h2>🔗 Интеграции</h2>
     <div class="integration-row">
-      <div class="intg-card"><h3><div class="intg-logo ins">IS</div>InSales</h3><div class="intg-stat"><strong>Каталог:</strong> ${P.length} товаров<br><strong>Остатки:</strong> синхр. каждые 15 мин<br><strong>Заказы:</strong> передаются в МойСклад<br><strong>Статус:</strong> ✅ Активен</div><button class="adm-btn sm" onclick="toast('Настройки InSales открыты')">Настроить</button></div>
-      <div class="intg-card"><h3><div class="intg-logo ms">МС</div>МойСклад</h3><div class="intg-stat"><strong>Склады:</strong> Челябинск, Красногорск<br><strong>API ключ:</strong> ●●●●●●●●1a2b<br><strong>Заказов передано:</strong> ${orders.length}<br><strong>Статус:</strong> ✅ Активен</div><button class="adm-btn sm" onclick="toast('Настройки МойСклад открыты')">Настроить</button></div>
+      <div class="intg-card"><h3><div class="intg-logo ins">IS</div>Витрина</h3><div class="intg-stat"><strong>Каталог:</strong> ${P.length} товаров<br><strong>Остатки:</strong> синхр. каждые 15 мин<br><strong>Заказы:</strong> передаются в систему<br><strong>Статус:</strong> ✅ Активен</div><button class="adm-btn sm" onclick="toast('Настройки витрины открыты')">Настроить</button></div>
+      <div class="intg-card"><h3><div class="intg-logo ms">МС</div>Склад</h3><div class="intg-stat"><strong>Склады:</strong> Челябинск, Красногорск<br><strong>API ключ:</strong> ●●●●●●●●1a2b<br><strong>Заказов передано:</strong> ${orders.length}<br><strong>Статус:</strong> ✅ Активен</div><button class="adm-btn sm" onclick="toast('Настройки склада открыты')">Настроить</button></div>
     </div>
     <div class="integration-row">
       <div class="intg-card"><h3><div class="intg-logo yk">ЮК</div>ЮKassa</h3><div class="intg-stat"><strong>Статус:</strong> 🟡 Тестовый режим<br><strong>Методы:</strong> Карты, ЯПэй, SberPay<br><strong>54-ФЗ:</strong> Автоматические чеки<br><strong>Транзакций:</strong> ${orders.filter(o=>o.pay.includes('Картой')).length}</div><button class="adm-btn sm" onclick="toast('Верификация ИП — 1-3 дня после подачи документов')">Верифицировать</button></div>
@@ -519,7 +519,7 @@ function renderAdmin(tab){
     </div>
     <div class="adm-table-wrap"><div class="adm-table-head"><h3>Контент-план — следующие 7 дней</h3></div>
     <table class="adm-tbl"><thead><tr><th>День</th><th>Тип поста</th><th>Тема</th><th>Статус</th></tr></thead><tbody>
-      <tr><td>Пн 20.03</td><td><span class="stbadge st-new">История</span></td><td>Открытие канала. Кто мы, почему дешевле Ozon.</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован в буфер')">Скопировать</button></td></tr>
+      <tr><td>Пн 20.03</td><td><span class="stbadge st-new">История</span></td><td>Открытие канала. Кто мы, почему дешевле рынка.</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован в буфер')">Скопировать</button></td></tr>
       <tr><td>Вт 21.03</td><td><span class="stbadge st-proc">Польза</span></td><td>Топ-5 горелок для зимней рыбалки</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован')">Скопировать</button></td></tr>
       <tr><td>Ср 22.03</td><td><span class="stbadge st-send">Акция</span></td><td>Горелка NS 509 — 280 ₽. Промокод РЫБАК7.</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован')">Скопировать</button></td></tr>
       <tr><td>Чт 23.03</td><td><span class="stbadge st-done">Опрос</span></td><td>Какую рыбу ловишь чаще?</td><td><button class="adm-btn sm" onclick="toast('Пост скопирован')">Скопировать</button></td></tr>
@@ -529,12 +529,12 @@ function renderAdmin(tab){
   }
 
   else if(admCur==='catalog_adm'){
-    el.innerHTML=`<h2>🛍 Каталог (InSales)</h2>
+    el.innerHTML=`<h2>🛍 Каталог</h2>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-      <button class="adm-btn" onclick="toast('Импорт из МойСклад запущен')">⬆ Импорт из МойСклад</button>
+      <button class="adm-btn" onclick="toast('Обновление каталога запущено')">⬆ Импорт каталога</button>
       <button class="adm-btn" onclick="toast('Экспорт в CSV готов')">⬇ Экспорт CSV</button>
     </div>
-    <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Фото</th><th>Название</th><th>Категория</th><th>Цена</th><th>Остаток</th><th>Статус InSales</th></tr></thead><tbody>
+    <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Фото</th><th>Название</th><th>Категория</th><th>Цена</th><th>Остаток</th><th>Статус</th></tr></thead><tbody>
     ${P.map(p=>`<tr>
       <td><img src="${p.img}" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--border);border-radius:3px" onerror="this.style.display='none'"></td>
       <td><div class="bold" style="font-size:13px">${p.name}</div></td>
@@ -560,8 +560,8 @@ function syncNow(name){
   renderAdmin();
 }
 function syncStockNow(){
-  syncLog.unshift({time:new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),event:'Остатки обновлены в InSales (10 товаров)',status:'ok'});
-  toast('Остатки синхронизированы с InSales');
+  syncLog.unshift({time:new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),event:'Остатки обновлены (10 товаров)',status:'ok'});
+  toast('Остатки синхронизированы');
   renderAdmin();
 }
 
