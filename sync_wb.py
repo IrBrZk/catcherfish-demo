@@ -455,10 +455,14 @@ def upsert_stocks(
             warehouse_id = int(warehouse["id"])
             warehouse_name = str(warehouse["name"])
             stock_map = fetch_stocks_for_warehouse(session, token, warehouse_id, chrt_ids)
+            warehouse_qty: Dict[int, int] = {}
             for chrt_id, nm_id in card_by_chrt_id.items():
                 quantity = stock_map.get(chrt_id, 0)
                 if quantity > 0:
                     total_nonzero += 1
+                warehouse_qty[nm_id] = warehouse_qty.get(nm_id, 0) + quantity
+
+            for nm_id, quantity in warehouse_qty.items():
                 cur.execute(
                     """
                     INSERT INTO stocks (sku, wb_nm_id, warehouse, warehouse_id, quantity, source, stock_type, updated_at)
@@ -471,7 +475,7 @@ def upsert_stocks(
                         stock_type = EXCLUDED.stock_type,
                         updated_at = NOW()
                     """,
-                    (str(chrt_id), str(nm_id), warehouse_name, warehouse_id, quantity, "wb", "fbo"),
+                    (str(nm_id), str(nm_id), warehouse_name, warehouse_id, quantity, "wb", "fbo"),
                 )
                 total_updated += 1
 
