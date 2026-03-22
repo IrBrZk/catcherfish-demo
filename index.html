@@ -234,24 +234,24 @@
     <div class="admin-sidebar">
       <div class="adm-brand">
         <div class="adm-brand-ico">⚙</div>
-        <div><span>CatcherFish Admin</span><small>InSales + МойСклад</small></div>
+        <div><span>CatcherFish Admin</span><small>PostgreSQL MVP + WB</small></div>
       </div>
-      <div class="adm-section-label">Магазин (InSales)</div>
+      <div class="adm-section-label">Каталог</div>
       <div class="adm-nav">
         <a class="act" onclick="admTab('dashboard',this)"><span>📊</span> Дашборд <span class="badge gr" id="b-orders">0</span></a>
         <a onclick="admTab('orders',this)"><span>📋</span> Заказы <span class="badge" id="b-new">0</span></a>
-        <a onclick="admTab('catalog_adm',this)"><span>🛍</span> Каталог InSales</a>
+        <a onclick="admTab('catalog_adm',this)"><span>🛍</span> Каталог</a>
         <a onclick="admTab('clients',this)"><span>👥</span> Клиенты</a>
       </div>
-      <div class="adm-section-label">Склад (МойСклад)</div>
+      <div class="adm-section-label">Остатки</div>
       <div class="adm-nav">
         <a onclick="admTab('stock',this)"><span>📦</span> Остатки <span class="badge rd" id="b-low">2</span></a>
         <a onclick="admTab('sync',this)"><span>🔄</span> Синхронизация</a>
         <a onclick="admTab('analytics',this)"><span>📈</span> Аналитика</a>
       </div>
-      <div class="adm-section-label">Интеграции</div>
+      <div class="adm-section-label">Сервисы</div>
       <div class="adm-nav">
-        <a onclick="admTab('integrations',this)"><span>🔗</span> InSales ↔ МойСклад</a>
+        <a onclick="admTab('integrations',this)"><span>🔗</span> WB ↔ PostgreSQL</a>
         <a onclick="admTab('ykassa',this)"><span>💳</span> ЮKassa</a>
         <a onclick="admTab('telegram',this)"><span>✈</span> Telegram-канал</a>
       </div>
@@ -318,7 +318,7 @@
     <div class="s-num" id="snum"></div>
     <div class="s-btns">
       <button onclick="document.getElementById('succ-ov').classList.remove('open');showPage('catalog')">В каталог</button>
-      <button class="sec" onclick="document.getElementById('succ-ov').classList.remove('open');showPage('admin')">Смотреть в МойСклад</button>
+      <button class="sec" onclick="document.getElementById('succ-ov').classList.remove('open');showPage('admin')">Смотреть в админке</button>
     </div>
   </div>
 </div>
