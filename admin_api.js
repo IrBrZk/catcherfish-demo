@@ -1,4 +1,4 @@
-const API_BASE = 'https://depend-criterion-classified-passport.trycloudflare.com';
+const API_BASE = 'https://chef-latest-lending-stolen.trycloudflare.com';
 const legacyRenderAdmin = window.renderAdmin;
 let admRenderSeq = 0;
 admCur = window.admCur || admCur || 'dashboard';
