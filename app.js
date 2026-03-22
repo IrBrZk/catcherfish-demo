@@ -96,6 +96,7 @@ async function loadCatalogFromAPI() {
       const stock = Number(p.stock || p.quantity || fallback.stock || 0);
       return {
         id: p.id ?? p.sku ?? p.wb_nm_id ?? fallback.id ?? idx + 1,
+        sku: String(p.sku || p.wb_nm_id || fallback.sku || fallback.id || p.id || idx + 1),
         cat: p.category || 'construction',
         name: p.name || fallback.name || '',
         price: Number(p.price ?? fallback.price ?? 0),
@@ -278,22 +279,73 @@ function updOrds(){
     <div class="os-tot"><span>К оплате</span><span>${fmt(sub+delCost)}</span></div>
   </div>`;
 }
-function placeOrder(){
+async function placeOrder(){
   const n=document.getElementById('fn').value.trim(), ph=document.getElementById('fph').value.trim();
   if(!n||!ph){toast('Введите имя и телефон',false);return;}
   if(!cart.length){toast('Корзина пуста',false);return;}
-  orderN++;
   const sub=cart.reduce((s,c)=>s+c.price*c.qty,0);
-  const num='CF-'+String(orderN+3).padStart(4,'0');
-  const order={id:num,name:n,phone:ph,items:cart.map(c=>({name:c.name,qty:c.qty,price:c.price})),sub,del:delCost,total:sub+delCost,pay:document.getElementById('fpay').value,status:'new',date:new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),src:'Прямой'};
+  const pay = document.getElementById('fpay').value;
+  const orderDate = new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const payload = {
+    order_id: `CF-${Date.now().toString(36).toUpperCase()}`,
+    marketplace: 'website',
+    status: 'new',
+    total_amount: sub + delCost,
+    customer_name: n,
+    customer_phone: ph,
+    payment_method: pay,
+    payment_status: 'pending',
+    items: cart.map(c => ({
+      sku: String(c.sku || c.id || ''),
+      name: c.name,
+      qty: c.qty,
+      price: c.price,
+    })),
+    delivery_method: 'pickup_or_delivery',
+    delivery_address: '',
+    customer_email: '',
+  };
+
+  let saved = null;
+  try {
+    const resp = await fetch(`${window.API_BASE}/orders`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) throw new Error(`API ${resp.status}`);
+    saved = await resp.json();
+  } catch (err) {
+    console.warn('Не удалось сохранить заказ в API, используем локальный fallback', err);
+  }
+
+  const num = String(saved?.order_id || payload.order_id);
+  const order = {
+    id: num,
+    name: n,
+    phone: ph,
+    items: cart.map(c=>({name:c.name, qty:c.qty, price:c.price, sku:String(c.sku || c.id || '')})),
+    sub,
+    del: delCost,
+    total: sub + delCost,
+    pay,
+    status: saved?.status || 'new',
+    date: saved?.created_at ? new Date(saved.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : orderDate,
+    src: 'Прямой',
+  };
+
   orders.unshift(order);
-  cart.forEach(c=>{const p=P.find(x=>x.id===c.id);if(p)p.stock=Math.max(0,p.stock-c.qty);});
-  // add client
+  cart.forEach(c=>{
+    const p=P.find(x=>String(x.id)===String(c.id) || String(x.sku||'')===String(c.sku||''));
+    if(p)p.stock=Math.max(0,Number(p.stock||0)-Number(c.qty||0));
+  });
   const exc=clients.find(c=>c.phone===ph);
   if(exc){exc.orders++;exc.total+=order.total;exc.last=order.date;}
   else clients.push({name:n,phone:ph,orders:1,total:order.total,last:order.date,type:'ret'});
   syncLog.unshift({time:order.date,event:`Заказ ${num} создан и передан в систему`,status:'ok'});
-  cart=[];updCart();renderCatalog();closeMod();
+  cart=[];updCart();renderCatalog();
+  loadCatalogFromAPI().catch(()=>{});
+  closeMod();
   document.getElementById('snum').textContent='#'+num;
   document.getElementById('succ-ov').classList.add('open');
   const bel=document.getElementById('b-new');if(bel){const newc=orders.filter(o=>o.status==='new').length;bel.textContent=newc||'';bel.style.display=newc?'':'none';}

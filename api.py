@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -143,6 +144,15 @@ def product_select_exprs(product_cols: set[str]) -> Dict[str, str]:
         "source": source_col or "'manual'",
         "updated_at": updated_col or "NOW()",
     }
+
+
+def coalesce_expr(columns: set[str], candidates: List[str], default: str) -> str:
+    present = [name for name in candidates if name in columns]
+    if not present:
+        return default
+    if len(present) == 1:
+        return present[0]
+    return f"COALESCE({', '.join(present)}, {default})"
 
 
 async def get_pool() -> asyncpg.Pool:
@@ -394,13 +404,164 @@ async def get_orders(
     async with pool_.acquire() as conn:
         if not await table_exists(conn, "orders"):
             return {"items": [], "total": 0, "limit": limit, "offset": offset}
-        rows = await conn.fetch("SELECT * FROM orders ORDER BY 1 DESC")
+        order_cols = await table_columns(conn, "orders")
+        total_expr = coalesce_expr(order_cols, ["total_amount", "total", "amount"], "0::numeric")
+        name_expr = "customer_name" if "customer_name" in order_cols else "name" if "name" in order_cols else "NULL::text"
+        phone_expr = "customer_phone" if "customer_phone" in order_cols else "phone" if "phone" in order_cols else "NULL::text"
+        created_expr = "created_at" if "created_at" in order_cols else "NOW()"
+        status_expr = "status" if "status" in order_cols else "'new'"
+        items_expr = "items" if "items" in order_cols else "'[]'::jsonb"
+        order_id_expr = "order_id" if "order_id" in order_cols else "id::text"
+        rows = await conn.fetch(
+            f"""
+            SELECT
+                {order_id_expr} AS order_id,
+                {status_expr} AS status,
+                {total_expr} AS total,
+                {name_expr} AS customer_name,
+                {phone_expr} AS customer_phone,
+                {items_expr} AS items,
+                {created_expr} AS created_at,
+                COALESCE(marketplace, 'website') AS marketplace,
+                COALESCE(payment_method, '') AS payment_method,
+                COALESCE(payment_status, 'pending') AS payment_status
+            FROM orders
+            ORDER BY {created_expr} DESC, id DESC
+            """
+        )
 
-    items = [row_to_dict(row) for row in rows]
+    items = []
+    for row in rows:
+        item = row_to_dict(row)
+        item["id"] = item.get("id") or item.get("order_id")
+        item["name"] = item.get("customer_name") or item.get("name")
+        item["phone"] = item.get("customer_phone") or item.get("phone")
+        item["total"] = item.get("total") or item.get("total_amount") or item.get("amount") or 0
+        item["date"] = item.get("created_at") or item.get("date")
+        items.append(item)
     if status:
         items = [item for item in items if str(item.get("status", "")).lower() == status.lower()]
     total = len(items)
     return {"items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
+
+
+@app.post("/orders")
+async def create_order(payload: Dict[str, Any]):
+    pool_ = await get_pool()
+    order_id = str(payload.get("order_id") or payload.get("id") or f"CF-{uuid.uuid4().hex[:10].upper()}")
+    marketplace = str(payload.get("marketplace") or "website")
+    status = str(payload.get("status") or "new")
+    customer_name = str(payload.get("customer_name") or payload.get("name") or "")
+    customer_phone = str(payload.get("customer_phone") or payload.get("phone") or "")
+    customer_email = str(payload.get("customer_email") or payload.get("email") or "")
+    delivery_method = str(payload.get("delivery_method") or "")
+    delivery_address = str(payload.get("delivery_address") or "")
+    payment_method = str(payload.get("payment_method") or payload.get("pay") or "")
+    payment_status = str(payload.get("payment_status") or "pending")
+    tracking_number = str(payload.get("tracking_number") or "")
+    items = payload.get("items") or []
+    normalized_items: List[Dict[str, Any]] = []
+    total_amount = payload.get("total_amount", payload.get("total"))
+    computed_total = 0.0
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        qty = int(item.get("qty") or item.get("quantity") or 1)
+        price = float(item.get("price") or 0)
+        sku = str(item.get("sku") or item.get("product_sku") or item.get("id") or "").strip()
+        name = str(item.get("name") or "Товар")
+        computed_total += qty * price
+        normalized_items.append({
+            "sku": sku,
+            "name": name,
+            "qty": qty,
+            "price": price,
+        })
+
+    total_amount = float(total_amount if total_amount is not None else computed_total)
+    created_at = datetime.utcnow()
+
+    async with pool_.acquire() as conn:
+        if not await table_exists(conn, "orders"):
+            raise HTTPException(status_code=503, detail="orders table is not available")
+        async with conn.transaction():
+            await conn.execute(
+                """
+                INSERT INTO orders (
+                    order_id, marketplace, status, total_amount,
+                    customer_name, customer_phone, customer_email,
+                    delivery_method, delivery_address,
+                    payment_method, payment_status, items,
+                    tracking_number, created_at, updated_at
+                ) VALUES (
+                    $1, $2, $3, $4,
+                    $5, $6, $7,
+                    $8, $9,
+                    $10, $11, $12,
+                    $13, $14, $14
+                )
+                ON CONFLICT (order_id) DO UPDATE SET
+                    marketplace = EXCLUDED.marketplace,
+                    status = EXCLUDED.status,
+                    total_amount = EXCLUDED.total_amount,
+                    customer_name = EXCLUDED.customer_name,
+                    customer_phone = EXCLUDED.customer_phone,
+                    customer_email = EXCLUDED.customer_email,
+                    delivery_method = EXCLUDED.delivery_method,
+                    delivery_address = EXCLUDED.delivery_address,
+                    payment_method = EXCLUDED.payment_method,
+                    payment_status = EXCLUDED.payment_status,
+                    items = EXCLUDED.items,
+                    tracking_number = EXCLUDED.tracking_number,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                order_id,
+                marketplace,
+                status,
+                total_amount,
+                customer_name,
+                customer_phone,
+                customer_email,
+                delivery_method,
+                delivery_address,
+                payment_method,
+                payment_status,
+                normalize(normalized_items),
+                tracking_number,
+                created_at,
+            )
+
+            if await table_exists(conn, "products"):
+                product_cols = await table_columns(conn, "products")
+                if "sku" in product_cols and "stock_available" in product_cols and "stock_reserved" in product_cols:
+                    for item in normalized_items:
+                        sku = item.get("sku")
+                        qty = int(item.get("qty") or 0)
+                        if not sku or qty <= 0:
+                            continue
+                        await conn.execute(
+                            """
+                            UPDATE products
+                            SET stock_reserved = COALESCE(stock_reserved, 0) + $2,
+                                stock_available = GREATEST(COALESCE(stock_total, 0) - (COALESCE(stock_reserved, 0) + $2), 0),
+                                updated_at = NOW()
+                            WHERE sku = $1
+                            """,
+                            sku,
+                            qty,
+                        )
+
+    return {
+        "order_id": order_id,
+        "marketplace": marketplace,
+        "status": status,
+        "total_amount": total_amount,
+        "items": normalized_items,
+        "customer_name": customer_name,
+        "customer_phone": customer_phone,
+        "created_at": created_at.isoformat(),
+    }
 
 
 @app.get("/sync/log")
@@ -435,12 +596,17 @@ async def get_stats():
         order_amount = 0
         if await table_exists(conn, "orders"):
             orders_count = await conn.fetchval("SELECT COUNT(*) FROM orders")
-            if "total" in {col["column_name"] for col in await conn.fetch("""
+            order_cols = {col["column_name"] for col in await conn.fetch("""
                 SELECT column_name
                 FROM information_schema.columns
                 WHERE table_schema = 'public' AND table_name = 'orders'
-            """)}:
+            """)}
+            if "total_amount" in order_cols:
+                order_amount = await conn.fetchval("SELECT COALESCE(SUM(total_amount), 0) FROM orders")
+            elif "total" in order_cols:
                 order_amount = await conn.fetchval("SELECT COALESCE(SUM(total), 0) FROM orders")
+            elif "amount" in order_cols:
+                order_amount = await conn.fetchval("SELECT COALESCE(SUM(amount), 0) FROM orders")
     return {
         "products": {"count": int(products_count or 0)},
         "orders": {"count": int(orders_count or 0), "total_revenue": float(order_amount or 0)},
