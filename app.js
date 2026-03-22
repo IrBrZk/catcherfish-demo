@@ -47,6 +47,24 @@ function inferCatFromProduct(p){
   return 'fishing';
 }
 
+function resolvePhotoUrl(photos){
+  if (!photos) return '';
+  if (typeof photos === 'string') return photos;
+  if (Array.isArray(photos)) {
+    for (const photo of photos) {
+      if (typeof photo === 'string' && photo) return photo;
+      if (photo && typeof photo === 'object') {
+        const candidate = photo.big || photo.c516x688 || photo.square || photo.tm || photo.url || photo.src;
+        if (candidate) return candidate;
+      }
+    }
+  }
+  if (typeof photos === 'object') {
+    return photos.big || photos.c516x688 || photos.square || photos.tm || photos.url || photos.src || '';
+  }
+  return '';
+}
+
 async function loadCatalogFromAPI() {
   try {
     const resp = await fetch(`${window.API_BASE}/products?limit=100`);
@@ -59,7 +77,7 @@ async function loadCatalogFromAPI() {
       name: p.name,
       price: Number(p.price || 0),
       old: Number(p.price_old || p.price || 0),
-      img: (Array.isArray(p.photos) && p.photos[0]) || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop',
+      img: resolvePhotoUrl(p.photos) || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop',
       stock: Number(p.stock || p.quantity || 0),
       badge: null,
       bc: 'or'
