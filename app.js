@@ -217,7 +217,13 @@ function buildProductCard(p){
 
 // ── CART ──────────────────────────────────────────────────────────────────
 function addCart(id){
-  const p=P.find(x=>x.id===id); const ex=cart.find(c=>c.id===id);
+  const pid=String(id);
+  const p=P.find(x=>String(x.id)===pid);
+  if(!p){
+    toast('Товар не найден');
+    return;
+  }
+  const ex=cart.find(c=>String(c.id)===pid);
   if(ex) ex.qty++; else cart.push({...p,qty:1});
   updCart(); toast(`${p.name.slice(0,26)}… → корзина`); renderCatalog();
 }
