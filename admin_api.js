@@ -1,4 +1,4 @@
-const API_BASE = 'http://103.73.35.92:8000';
+const API_BASE = 'https://depend-criterion-classified-passport.trycloudflare.com';
 const legacyRenderAdmin = window.renderAdmin;
 let admRenderSeq = 0;
 admCur = window.admCur || admCur || 'dashboard';
