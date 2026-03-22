@@ -127,6 +127,14 @@ def ensure_tables(conn) -> None:
             );
             """
         )
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS wb_nm_id BIGINT;")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS name TEXT;")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT;")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS photos JSONB NOT NULL DEFAULT '[]'::jsonb;")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS price NUMERIC(14, 2);")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'wb';")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS stocks (
@@ -139,6 +147,10 @@ def ensure_tables(conn) -> None:
             );
             """
         )
+        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS wb_nm_id BIGINT;")
+        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS warehouse_id BIGINT;")
+        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 0;")
+        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS sync_log (
@@ -153,6 +165,13 @@ def ensure_tables(conn) -> None:
             );
             """
         )
+        cur.execute("ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'wb';")
+        cur.execute("ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ok';")
+        cur.execute("ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS products_updated INTEGER NOT NULL DEFAULT 0;")
+        cur.execute("ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS stocks_updated INTEGER NOT NULL DEFAULT 0;")
+        cur.execute("ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS message TEXT;")
+        cur.execute("ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS error_message TEXT;")
+        cur.execute("ALTER TABLE sync_log ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();")
     conn.commit()
 
 
