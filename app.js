@@ -82,17 +82,22 @@ async function loadCatalogFromAPI() {
     const data = await resp.json();
     const items = Array.isArray(data.items) ? data.items : [];
     if (!items.length) return;
-    P = items.map(p => ({
-      id: p.id ?? p.sku ?? p.wb_nm_id,
-      cat: p.category || inferCatFromProduct(p),
-      name: p.name,
-      price: Number(p.price || 0),
-      old: Number(p.price_old || p.price || 0),
-      img: resolvePhotoUrl(p.photos) || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop',
-      stock: Number(p.stock || p.quantity || 0),
-      badge: null,
-      bc: 'or'
-    }));
+    const fallbackByName = new Map(LOCAL_P.map(item => [String(item.name || '').toLowerCase(), item]));
+    P = items.map((p, idx) => {
+      const fallback = fallbackByName.get(String(p.name || '').toLowerCase()) || LOCAL_P[idx] || {};
+      const stock = Number(p.stock || p.quantity || fallback.stock || 0);
+      return {
+        id: p.id ?? p.sku ?? p.wb_nm_id ?? fallback.id ?? idx + 1,
+        cat: p.category || inferCatFromProduct(p) || fallback.cat || 'fishing',
+        name: p.name || fallback.name || '',
+        price: Number(p.price ?? fallback.price ?? 0),
+        old: Number(p.price_old ?? p.price ?? fallback.old ?? fallback.price ?? 0),
+        img: resolvePhotoUrl(p.photos) || fallback.img || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop',
+        stock,
+        badge: fallback.badge ?? null,
+        bc: fallback.bc || 'or'
+      };
+    });
     renderCatalog();
   } catch (e) {
     console.warn('API недоступен, используем локальные данные');
