@@ -138,19 +138,28 @@ def ensure_tables(conn) -> None:
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS stocks (
-                sku BIGINT NOT NULL,
-                wb_nm_id BIGINT NOT NULL,
-                warehouse_id BIGINT NOT NULL,
+                sku TEXT NOT NULL,
+                wb_nm_id TEXT NOT NULL,
+                warehouse TEXT NOT NULL,
+                warehouse_id BIGINT,
                 quantity INTEGER NOT NULL DEFAULT 0,
+                source VARCHAR(20) NOT NULL DEFAULT 'manual',
+                stock_type VARCHAR(20) NOT NULL DEFAULT 'fbs',
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                PRIMARY KEY (sku, warehouse_id)
+                PRIMARY KEY (sku, warehouse)
             );
             """
         )
-        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS wb_nm_id BIGINT;")
-        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS warehouse_id BIGINT;")
+        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS warehouse TEXT NOT NULL DEFAULT 'manual';")
+        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS source VARCHAR(20) NOT NULL DEFAULT 'manual';")
+        cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS stock_type VARCHAR(20) NOT NULL DEFAULT 'fbs';")
         cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 0;")
         cur.execute("ALTER TABLE stocks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();")
+        cur.execute("ALTER TABLE stocks ALTER COLUMN sku TYPE TEXT USING sku::text;")
+        cur.execute("ALTER TABLE stocks ALTER COLUMN wb_nm_id TYPE TEXT USING wb_nm_id::text;")
+        cur.execute("ALTER TABLE stocks ALTER COLUMN warehouse_id DROP NOT NULL;")
+        cur.execute("ALTER TABLE stocks DROP CONSTRAINT IF EXISTS stocks_pkey;")
+        cur.execute("ALTER TABLE stocks ADD PRIMARY KEY (sku, warehouse);")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS sync_log (
@@ -242,15 +251,20 @@ def fetch_prices(session: requests.Session, token: str, nm_ids: Sequence[int]) -
     return prices
 
 
-def fetch_warehouses(session: requests.Session, token: str) -> List[int]:
+def fetch_warehouses(session: requests.Session, token: str) -> List[Dict[str, Any]]:
     headers = {"Authorization": token, "Content-Type": "application/json"}
     data = request_json(session, "GET", WB_WAREHOUSES_URL, headers=headers)
-    warehouse_ids: List[int] = []
+    warehouses: List[Dict[str, Any]] = []
     for item in data or []:
         warehouse_id = item.get("id")
         if warehouse_id is not None:
-            warehouse_ids.append(int(warehouse_id))
-    return warehouse_ids
+            warehouses.append(
+                {
+                    "id": int(warehouse_id),
+                    "name": str(item.get("name") or item.get("title") or f"WB {warehouse_id}"),
+                }
+            )
+    return warehouses
 
 
 def fetch_stocks_for_warehouse(
@@ -353,7 +367,7 @@ def upsert_products(conn, cards: Sequence[Dict[str, Any]], price_map: Dict[int, 
 def upsert_stocks(
     conn,
     cards: Sequence[Dict[str, Any]],
-    warehouses: Sequence[int],
+    warehouses: Sequence[Dict[str, Any]],
     session: requests.Session,
     token: str,
 ) -> int:
@@ -377,14 +391,17 @@ def upsert_stocks(
             for nm_id, quantity in card_fallback_qty.items():
                 cur.execute(
                     """
-                    INSERT INTO stocks (sku, wb_nm_id, warehouse_id, quantity, updated_at)
-                    VALUES (%s, %s, %s, %s, NOW())
-                    ON CONFLICT (sku, warehouse_id) DO UPDATE SET
+                    INSERT INTO stocks (sku, wb_nm_id, warehouse, warehouse_id, quantity, source, stock_type, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (sku, warehouse) DO UPDATE SET
                         wb_nm_id = EXCLUDED.wb_nm_id,
+                        warehouse_id = EXCLUDED.warehouse_id,
                         quantity = EXCLUDED.quantity,
+                        source = EXCLUDED.source,
+                        stock_type = EXCLUDED.stock_type,
                         updated_at = NOW()
                     """,
-                    (nm_id, nm_id, 0, quantity),
+                    (str(nm_id), str(nm_id), "manual", None, quantity, "manual", "own"),
                 )
         conn.commit()
         return len(card_fallback_qty)
@@ -394,7 +411,9 @@ def upsert_stocks(
     total_nonzero = 0
 
     with conn.cursor() as cur:
-        for warehouse_id in warehouses:
+        for warehouse in warehouses:
+            warehouse_id = int(warehouse["id"])
+            warehouse_name = str(warehouse["name"])
             stock_map = fetch_stocks_for_warehouse(session, token, warehouse_id, chrt_ids)
             for chrt_id, nm_id in card_by_chrt_id.items():
                 quantity = stock_map.get(chrt_id, 0)
@@ -402,14 +421,17 @@ def upsert_stocks(
                     total_nonzero += 1
                 cur.execute(
                     """
-                    INSERT INTO stocks (sku, wb_nm_id, warehouse_id, quantity, updated_at)
-                    VALUES (%s, %s, %s, %s, NOW())
-                    ON CONFLICT (sku, warehouse_id) DO UPDATE SET
+                    INSERT INTO stocks (sku, wb_nm_id, warehouse, warehouse_id, quantity, source, stock_type, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (sku, warehouse) DO UPDATE SET
                         wb_nm_id = EXCLUDED.wb_nm_id,
+                        warehouse_id = EXCLUDED.warehouse_id,
                         quantity = EXCLUDED.quantity,
+                        source = EXCLUDED.source,
+                        stock_type = EXCLUDED.stock_type,
                         updated_at = NOW()
                     """,
-                    (chrt_id, nm_id, warehouse_id, quantity),
+                    (str(chrt_id), str(nm_id), warehouse_name, warehouse_id, quantity, "wb", "fbo"),
                 )
                 total_updated += 1
 
@@ -419,14 +441,17 @@ def upsert_stocks(
             for nm_id, quantity in card_fallback_qty.items():
                 cur.execute(
                     """
-                    INSERT INTO stocks (sku, wb_nm_id, warehouse_id, quantity, updated_at)
-                    VALUES (%s, %s, %s, %s, NOW())
-                    ON CONFLICT (sku, warehouse_id) DO UPDATE SET
+                    INSERT INTO stocks (sku, wb_nm_id, warehouse, warehouse_id, quantity, source, stock_type, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (sku, warehouse) DO UPDATE SET
                         wb_nm_id = EXCLUDED.wb_nm_id,
+                        warehouse_id = EXCLUDED.warehouse_id,
                         quantity = EXCLUDED.quantity,
+                        source = EXCLUDED.source,
+                        stock_type = EXCLUDED.stock_type,
                         updated_at = NOW()
                     """,
-                    (nm_id, nm_id, 0, quantity),
+                    (str(nm_id), str(nm_id), "manual", None, quantity, "manual", "own"),
                 )
         conn.commit()
         return len(card_fallback_qty)

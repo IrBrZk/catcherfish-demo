@@ -119,28 +119,45 @@ async function renderAdminApi(tab) {
       const data = await loadStocks();
       if (seq !== admRenderSeq) return;
       const rows = data.items || [];
-      const totalUnits = rows.reduce((s, r) => s + Number(r.quantity || 0), 0);
+      const bySource = data.by_source || {};
+      const wb = bySource.wb || { count: 0, units: 0 };
+      const ozon = bySource.ozon || { count: 0, units: 0 };
+      const local = bySource.local || bySource.manual || { count: 0, units: 0 };
+      const totalUnits = Number(data.total || rows.reduce((s, r) => s + Number(r.quantity || 0), 0));
       const lowCount = rows.filter(r => Number(r.quantity || 0) < 20).length;
+      const sourceLabel = src => {
+        const key = String(src || 'manual').toLowerCase();
+        if (key === 'wb') return 'WB';
+        if (key === 'ozon') return 'Ozon';
+        return 'Склад';
+      };
+      const sourceClass = src => {
+        const key = String(src || 'manual').toLowerCase();
+        if (key === 'wb') return 'send';
+        if (key === 'ozon') return 'proc';
+        return 'done';
+      };
       el.innerHTML = `<h2>📦 Остатки на складе (catcherfish_db) <span class="sub">WB → PostgreSQL</span></h2>
       <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
-        <div class="metric"><div class="mv">${totalUnits.toLocaleString('ru-RU')}</div><div class="ml">Всего единиц</div></div>
-        <div class="metric"><div class="mv" style="color:var(--red)">${lowCount}</div><div class="ml">Низкий остаток</div></div>
-        <div class="metric"><div class="mv">${rows.length}</div><div class="ml">Строк</div></div>
+        <div class="metric"><div class="mv" style="color:var(--yellow)">${Number(wb.units || 0).toLocaleString('ru-RU')}</div><div class="ml">🟡 WB: ${Number(wb.count || 0)} строк</div></div>
+        <div class="metric"><div class="mv" style="color:var(--blue)">${Number(ozon.units || 0).toLocaleString('ru-RU')}</div><div class="ml">🔵 Ozon: ${Number(ozon.count || 0)} строк</div></div>
+        <div class="metric"><div class="mv" style="color:var(--green)">${Number(local.units || 0).toLocaleString('ru-RU')}</div><div class="ml">🏭 Склад: ${Number(local.count || 0)} строк</div></div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
         <button class="adm-btn" onclick="syncStockNow()">🔄 Синхронизировать с WB/Ozon</button>
         <div class="sync-status"><span class="sync-dot"></span>PostgreSQL подключён · catcherfish_db · авто-синхр. каждые 15 мин</div>
       </div>
-      <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Товар</th><th>Склад</th><th>Остаток</th><th>SKU</th></tr></thead><tbody>
+      <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Товар</th><th>Склад</th><th>Источник</th><th>Остаток</th><th>SKU</th></tr></thead><tbody>
       ${rows.length ? rows.map(r => {
         const qty = Number(r.quantity || 0);
         return `<tr>
           <td><div class="bold" style="font-size:13px">${escHtml(r.product_name || r.name || `SKU ${r.sku}`)}</div></td>
-          <td style="font-size:12px">${escHtml(r.warehouse_name || r.warehouse_id || '—')}</td>
+          <td style="font-size:12px">${escHtml(r.warehouse || r.warehouse_name || r.warehouse_id || '—')}</td>
+          <td><span class="stbadge st-${sourceClass(r.source)}">${escHtml(sourceLabel(r.source))}</span></td>
           <td><span style="font-weight:700;color:${qty < 20 ? 'var(--red)' : qty < 100 ? 'var(--yellow)' : 'var(--green)'}">${qty} шт</span></td>
           <td class="mono">${escHtml(r.sku)}</td>
         </tr>`;
-      }).join('') : '<tr><td colspan="4" style="padding:28px;color:var(--muted);text-align:center">Остатков пока нет</td></tr>'}
+      }).join('') : '<tr><td colspan="5" style="padding:28px;color:var(--muted);text-align:center">Остатков пока нет</td></tr>'}
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;

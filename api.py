@@ -198,38 +198,44 @@ async def get_stocks(
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
         if not await table_exists(conn, "stocks"):
-            return {"items": [], "total": 0, "limit": limit, "offset": offset}
+            return {"items": [], "by_source": {}, "total": 0, "limit": limit, "offset": offset}
         stock_cols = await table_columns(conn, "stocks")
-        stock_key = "sku" if "sku" in stock_cols else "wb_nm_id" if "wb_nm_id" in stock_cols else None
-        if not stock_key:
-            return {"items": [], "total": 0, "limit": limit, "offset": offset}
+        if "sku" not in stock_cols:
+            return {"items": [], "by_source": {}, "total": 0, "limit": limit, "offset": offset}
         qty_key = next((name for name in ("quantity", "stock", "balance", "qty") if name in stock_cols), None)
-        wh_key = "warehouse_id" if "warehouse_id" in stock_cols else None
         upd_key = "updated_at" if "updated_at" in stock_cols else None
+        warehouse_key = "warehouse" if "warehouse" in stock_cols else None
+        source_key = "source" if "source" in stock_cols else None
+        stock_type_key = "stock_type" if "stock_type" in stock_cols else None
         select_parts = [
-            f"s.{stock_key} AS sku",
-            f"s.{stock_key} AS wb_nm_id",
+            "s.sku AS sku",
+            "s.wb_nm_id AS wb_nm_id" if "wb_nm_id" in stock_cols else "NULL::text AS wb_nm_id",
+            f"s.{warehouse_key} AS warehouse" if warehouse_key else "NULL::text AS warehouse",
             f"s.{qty_key} AS quantity" if qty_key else "0 AS quantity",
-            f"s.{wh_key} AS warehouse_id" if wh_key else "NULL::text AS warehouse_id",
+            "s.warehouse_id AS warehouse_id" if "warehouse_id" in stock_cols else "NULL::bigint AS warehouse_id",
+            f"s.{source_key} AS source" if source_key else "'manual' AS source",
+            f"s.{stock_type_key} AS stock_type" if stock_type_key else "'fbs' AS stock_type",
             f"s.{upd_key} AS updated_at" if upd_key else "NOW() AS updated_at",
             "p.name AS product_name",
             "p.brand",
             "p.description",
             "p.price",
         ]
-        join_expr = f"p.sku = s.{stock_key}" if stock_key == "sku" else f"p.wb_nm_id = s.{stock_key}"
         rows = await conn.fetch(
             f"""
             SELECT {', '.join(select_parts)}
             FROM stocks s
-            LEFT JOIN products p ON {join_expr}
-            ORDER BY s.{stock_key} DESC
+            LEFT JOIN products p ON p.sku::text = s.sku OR p.wb_nm_id::text = s.wb_nm_id
+            ORDER BY s.updated_at DESC, s.sku DESC
             """
         )
     items = []
     for row in rows:
         item = row_to_dict(row)
         item.setdefault("product_name", item.get("name") or item.get("sku"))
+        item.setdefault("warehouse", item.get("warehouse") or item.get("warehouse_id") or "—")
+        item.setdefault("source", item.get("source") or "manual")
+        item.setdefault("stock_type", item.get("stock_type") or "fbs")
         item.setdefault("quantity", item.get("quantity", item.get("stock", item.get("balance", item.get("qty", 0)))))
         item["category"] = infer_category(item)
         items.append(item)
@@ -245,8 +251,15 @@ async def get_stocks(
             or q in str(item.get("description", "")).lower()
         ]
 
-    total = len(items)
-    return {"items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
+    by_source: Dict[str, Dict[str, int]] = {}
+    for item in items:
+        src = str(item.get("source") or "manual").lower()
+        bucket = by_source.setdefault(src, {"count": 0, "units": 0})
+        bucket["count"] += 1
+        bucket["units"] += int(item.get("quantity") or 0)
+
+    total = sum(int(item.get("quantity") or 0) for item in items)
+    return {"items": items[offset:offset + limit], "by_source": by_source, "total": total, "limit": limit, "offset": offset}
 
 
 @app.get("/orders")
