@@ -208,7 +208,7 @@ def ensure_tables(conn) -> None:
     conn.commit()
 
 
-def fetch_cards(session: requests.Session, token: str, max_cards: int = 6) -> List[Dict[str, Any]]:
+def fetch_cards(session: requests.Session, token: str, max_cards: int = 60) -> List[Dict[str, Any]]:
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -226,9 +226,12 @@ def fetch_cards(session: requests.Session, token: str, max_cards: int = 6) -> Li
         }
         data = request_json(session, "POST", WB_CONTENT_URL, headers=headers, payload=payload)
         batch = (data or {}).get("cards") or []
-        cards.extend(batch)
-        if len(cards) >= max_cards:
-            return cards[:max_cards]
+        for card in batch:
+            if extract_card_stock(card) <= 0:
+                continue
+            cards.append(card)
+            if len(cards) >= max_cards:
+                return cards[:max_cards]
 
         response_cursor = (data or {}).get("cursor") or {}
         if len(batch) < cursor["limit"]:
@@ -391,7 +394,7 @@ def upsert_products(conn, cards: Sequence[Dict[str, Any]], price_map: Dict[int, 
                     card.get("title"),
                     card.get("description"),
                     card.get("brand"),
-                    None,
+                    'construction',
                     None,
                     stock_qty,
                     Json(photos),
@@ -512,7 +515,7 @@ def main() -> int:
             )
             return 0
 
-        cards = fetch_cards(session, token, max_cards=6)
+        cards = fetch_cards(session, token, max_cards=60)
         nm_ids = [int(card["nmID"]) for card in cards if card.get("nmID") is not None]
         price_map = fetch_prices(session, token, nm_ids)
         products_updated = upsert_products(conn, cards, price_map)

@@ -86,7 +86,9 @@ async function loadCatalogFromAPI() {
   try {
     const resp = await fetch(`${window.API_BASE}/products?limit=100`);
     const data = await resp.json();
-    const items = Array.isArray(data.items) ? data.items : [];
+    const items = (Array.isArray(data.items) ? data.items : [])
+      .filter(p => String(p.source || '').toLowerCase() === 'wb' && Number(p.stock || p.quantity || 0) > 0)
+      .slice(0, 60);
     if (!items.length) return;
     P = items.map((p, idx) => {
       const fallback = LOCAL_P.find(item => String(item.name || '').toLowerCase() === String(p.name || '').toLowerCase()) || LOCAL_P[idx] || {};
@@ -94,7 +96,7 @@ async function loadCatalogFromAPI() {
       const stock = Number(p.stock || p.quantity || fallback.stock || 0);
       return {
         id: p.id ?? p.sku ?? p.wb_nm_id ?? fallback.id ?? idx + 1,
-        cat: p.category || inferCatFromProduct(p) || fallback.cat || 'fishing',
+        cat: p.category || 'construction',
         name: p.name || fallback.name || '',
         price: Number(p.price ?? fallback.price ?? 0),
         old: Number(p.price_old ?? p.price ?? fallback.old ?? fallback.price ?? 0),
@@ -113,12 +115,13 @@ async function loadCatalogFromAPI() {
 }
 
 const catalogSections=[
+  {key:'construction',title:'🏗 Стройка',cats:['construction']},
   {key:'fish',title:'🎣 Рыболовные товары',cats:['fishing','lure']},
   {key:'tent',title:'⛺ Туристическое',cats:['tent']},
   {key:'gas',title:'⛽ Газовое снаряжение — со склада в Челябинске',cats:['gas']},
   {key:'boat',title:'🚣 Лодки',cats:['boat']},
 ];
-const catTitles={all:'Все товары',fishing:'Рыболовные',lure:'Рыболовные',tent:'Туристическое',gas:'Газовое',boat:'Лодки'};
+const catTitles={all:'Все товары',construction:'Стройка',fishing:'Рыболовные',lure:'Рыболовные',tent:'Туристическое',gas:'Газовое',boat:'Лодки'};
 
 // ── PAGES ─────────────────────────────────────────────────────────────────
 function showPage(name){

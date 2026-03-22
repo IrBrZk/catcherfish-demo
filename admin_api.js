@@ -263,7 +263,7 @@ async function renderAdminApi(tab) {
         return `<tr>
           <td><img src="${escHtml(photo || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=80&h=80&fit=crop')}" style="width:44px;height:44px;object-fit:cover;border:1px solid var(--border);border-radius:3px" onerror="this.style.display='none'"></td>
           <td><div class="bold" style="font-size:13px">${escHtml(p.name || `SKU ${p.sku || p.wb_nm_id || '—'}`)}</div><div style="font-size:11px;color:var(--muted)">${escHtml(p.description || '')}</div></td>
-          <td style="font-size:12px;color:var(--muted)">${escHtml({fishing:'Рыболовные',lure:'Снасти',gas:'Газовое',tent:'Туризм',boat:'Лодки',other:'Другое'}[cat] || cat)}</td>
+          <td style="font-size:12px;color:var(--muted)">${escHtml({construction:'Стройка',fishing:'Рыболовные',lure:'Снасти',gas:'Газовое',tent:'Туризм',boat:'Лодки',other:'Другое'}[cat] || cat)}</td>
           <td class="bold" style="color:var(--orange2)">${fmtMoney(p.price || 0)}</td>
           <td style="font-weight:700;color:${Number(p.stock || p.quantity || 0) < 20 ? 'var(--red)' : Number(p.stock || p.quantity || 0) < 100 ? 'var(--yellow)' : 'var(--green)'}">${Number(p.stock || p.quantity || 0)}</td>
           <td><span class="stbadge st-send">wb</span></td>
