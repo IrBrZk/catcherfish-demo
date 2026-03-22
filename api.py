@@ -143,7 +143,7 @@ async def get_products(
     async with pool_.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT sku, wb_nm_id, name, description, brand, photos, price, source, updated_at
+            SELECT sku, wb_nm_id, name, description, brand, category, price_old, stock, photos, price, source, updated_at
             FROM products
             ORDER BY updated_at DESC, sku DESC
             """
@@ -151,7 +151,7 @@ async def get_products(
     items = []
     for row in rows:
         item = row_to_dict(row)
-        item["category"] = infer_category(item)
+        item["category"] = item.get("category") or infer_category(item)
         items.append(item)
 
     if category:
@@ -170,12 +170,12 @@ async def get_products(
 
 
 @app.get("/products/{sku}")
-async def get_product(sku: int):
+async def get_product(sku: str):
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT sku, wb_nm_id, name, description, brand, photos, price, source, updated_at
+            SELECT sku, wb_nm_id, name, description, brand, category, price_old, stock, photos, price, source, updated_at
             FROM products
             WHERE sku = $1
             """,
@@ -184,7 +184,7 @@ async def get_product(sku: int):
     if not row:
         raise HTTPException(status_code=404, detail="Product not found")
     item = row_to_dict(row)
-    item["category"] = infer_category(item)
+    item["category"] = item.get("category") or infer_category(item)
     return item
 
 

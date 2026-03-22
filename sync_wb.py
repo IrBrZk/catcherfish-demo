@@ -128,11 +128,14 @@ def ensure_tables(conn) -> None:
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS products (
-                sku BIGINT PRIMARY KEY,
-                wb_nm_id BIGINT NOT NULL UNIQUE,
+                sku TEXT PRIMARY KEY,
+                wb_nm_id TEXT UNIQUE,
                 name TEXT,
                 description TEXT,
                 brand TEXT,
+                category TEXT,
+                price_old NUMERIC(14, 2),
+                stock INTEGER,
                 photos JSONB NOT NULL DEFAULT '[]'::jsonb,
                 price NUMERIC(14, 2),
                 source TEXT NOT NULL DEFAULT 'wb',
@@ -140,14 +143,20 @@ def ensure_tables(conn) -> None:
             );
             """
         )
-        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS wb_nm_id BIGINT;")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS wb_nm_id TEXT;")
         cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS name TEXT;")
         cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;")
         cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT;")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS category TEXT;")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS price_old NUMERIC(14, 2);")
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER;")
         cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS photos JSONB NOT NULL DEFAULT '[]'::jsonb;")
         cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS price NUMERIC(14, 2);")
         cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'wb';")
         cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();")
+        cur.execute("ALTER TABLE products ALTER COLUMN sku TYPE TEXT USING sku::text;")
+        cur.execute("ALTER TABLE products ALTER COLUMN wb_nm_id TYPE TEXT USING wb_nm_id::text;")
+        cur.execute("ALTER TABLE products ALTER COLUMN wb_nm_id DROP NOT NULL;")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS stocks (
@@ -351,24 +360,29 @@ def upsert_products(conn, cards: Sequence[Dict[str, Any]], price_map: Dict[int, 
 
             cur.execute(
                 """
-                INSERT INTO products (sku, wb_nm_id, name, description, brand, photos, price, source, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 'wb', NOW())
+                INSERT INTO products (sku, wb_nm_id, name, description, brand, category, price_old, stock, photos, price, source, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'wb', NOW())
                 ON CONFLICT (sku) DO UPDATE SET
                     wb_nm_id = EXCLUDED.wb_nm_id,
                     name = EXCLUDED.name,
                     description = EXCLUDED.description,
                     brand = EXCLUDED.brand,
+                    category = EXCLUDED.category,
+                    price_old = EXCLUDED.price_old,
+                    stock = EXCLUDED.stock,
                     photos = EXCLUDED.photos,
                     price = EXCLUDED.price,
                     source = EXCLUDED.source,
                     updated_at = NOW()
                 """,
                 (
-                    int(nm_id),
-                    int(nm_id),
+                    str(nm_id),
+                    str(nm_id),
                     card.get("title"),
                     card.get("description"),
                     card.get("brand"),
+                    None,
+                    None,
                     Json(photos),
                     price,
                 ),
@@ -480,14 +494,15 @@ def write_sync_log(
     stocks_updated: int,
     message: str = "",
     error_message: str = "",
+    source: str = "wb",
 ) -> None:
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO sync_log (source, status, products_updated, stocks_updated, message, error_message, created_at)
-            VALUES ('wb', %s, %s, %s, %s, %s, NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
             """,
-            (status, products_updated, stocks_updated, message, error_message),
+            (source, status, products_updated, stocks_updated, message, error_message),
         )
     conn.commit()
 
