@@ -137,18 +137,27 @@ async function renderAdminApi(tab) {
       const local = bySource.local || bySource.manual || { count: 0, units: 0 };
       const totalUnits = Number(data.total || rows.reduce((s, r) => s + Number(r.quantity || 0), 0));
       const lowCount = rows.filter(r => Number(r.quantity || 0) < 20).length;
-      const sourceLabel = src => {
-        const key = String(src || 'manual').toLowerCase();
-        if (key === 'wb') return 'WB';
-        if (key === 'ozon') return 'Ozon';
-        return 'Склад';
-      };
-      const sourceClass = src => {
-        const key = String(src || 'manual').toLowerCase();
-        if (key === 'wb') return 'send';
-        if (key === 'ozon') return 'proc';
-        return 'done';
-      };
+      const grouped = new Map();
+      for (const r of rows) {
+        const sku = String(r.sku || r.wb_nm_id || '—');
+        const key = sku;
+        const src = String(r.source || 'manual').toLowerCase();
+        const qty = Number(r.quantity || 0);
+        const current = grouped.get(key) || {
+          sku,
+          name: r.product_name || r.name || `SKU ${sku}`,
+          wb: 0,
+          ozon: 0,
+          local: 0,
+          total: 0,
+        };
+        if (src === 'wb') current.wb += qty;
+        else if (src === 'ozon') current.ozon += qty;
+        else current.local += qty;
+        current.total += qty;
+        grouped.set(key, current);
+      }
+      const groupedRows = [...grouped.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'ru'));
       el.innerHTML = `<h2>📦 Остатки на складе (catcherfish_db) <span class="sub">WB → PostgreSQL</span></h2>
       <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
         <div class="metric"><div class="mv" style="color:var(--yellow)">${Number(wb.units || 0).toLocaleString('ru-RU')}</div><div class="ml">🟡 WB: ${Number(wb.count || 0)} строк</div></div>
@@ -159,17 +168,18 @@ async function renderAdminApi(tab) {
         <button class="adm-btn" onclick="syncStockNow()">🔄 Синхронизировать с WB/Ozon</button>
         <div class="sync-status"><span class="sync-dot"></span>PostgreSQL подключён · catcherfish_db · авто-синхр. каждые 15 мин</div>
       </div>
-      <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Товар</th><th>Склад</th><th>Источник</th><th>Остаток</th><th>SKU</th></tr></thead><tbody>
-      ${rows.length ? rows.map(r => {
-        const qty = Number(r.quantity || 0);
-        return `<tr>
-          <td><div class="bold" style="font-size:13px">${escHtml(r.product_name || r.name || `SKU ${r.sku}`)}</div></td>
-          <td style="font-size:12px">${escHtml(r.warehouse || r.warehouse_name || r.warehouse_id || '—')}</td>
-          <td><span class="stbadge st-${sourceClass(r.source)}">${escHtml(sourceLabel(r.source))}</span></td>
-          <td><span style="font-weight:700;color:${qty < 20 ? 'var(--red)' : qty < 100 ? 'var(--yellow)' : 'var(--green)'}">${qty} шт</span></td>
+      <div class="adm-table-wrap"><div class="adm-table-head"><h3>Остатки по SKU</h3><span class="sub">Один товар = одна строка, суммы по источникам</span></div>
+      <table class="adm-tbl"><thead><tr><th>Товар</th><th>SKU</th><th>WB</th><th>Ozon</th><th>Склад</th><th>Итого</th></tr></thead><tbody>
+      ${groupedRows.length ? groupedRows.map(r => `
+        <tr>
+          <td><div class="bold" style="font-size:13px">${escHtml(r.name)}</div></td>
           <td class="mono">${escHtml(r.sku)}</td>
-        </tr>`;
-      }).join('') : '<tr><td colspan="5" style="padding:28px;color:var(--muted);text-align:center">Остатков пока нет</td></tr>'}
+          <td><span class="stbadge st-send">${Number(r.wb || 0)} шт</span></td>
+          <td><span class="stbadge st-proc">${Number(r.ozon || 0)} шт</span></td>
+          <td><span class="stbadge st-done">${Number(r.local || 0)} шт</span></td>
+          <td><span style="font-weight:700;color:${Number(r.total || 0) < 20 ? 'var(--red)' : Number(r.total || 0) < 100 ? 'var(--yellow)' : 'var(--green)'}">${Number(r.total || 0)} шт</span></td>
+        </tr>
+      `).join('') : '<tr><td colspan="6" style="padding:28px;color:var(--muted);text-align:center">Остатков пока нет</td></tr>'}
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
