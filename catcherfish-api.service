@@ -1,0 +1,12 @@
+[Unit]
+Description=CatcherFish API
+After=network.target postgresql.service
+
+[Service]
+User=alexvps
+WorkingDirectory=/home/alexvps/catcherfish
+ExecStart=/usr/bin/uvicorn api:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
