@@ -434,7 +434,7 @@ def write_sync_log(
 
 
 def main() -> int:
-    token = env("WB_API_TOKEN", required=True)
+    token = os.getenv("WB_API_TOKEN", "").strip()
     session = requests.Session()
     conn = None
 
@@ -448,6 +448,19 @@ def main() -> int:
 
     try:
         ensure_tables(conn)
+
+        if not token:
+            write_sync_log(
+                conn,
+                "skipped",
+                0,
+                0,
+                message="WB_API_TOKEN is not set; WB sync skipped",
+            )
+            send_telegram_message(
+                f"ℹ WB синхронизация пропущена\nПричина: WB_API_TOKEN не задан\nВремя: {now_text()}"
+            )
+            return 0
 
         cards = fetch_cards(session, token)
         nm_ids = [int(card["nmID"]) for card in cards if card.get("nmID") is not None]
