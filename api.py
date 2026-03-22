@@ -75,6 +75,40 @@ def infer_category(product: Dict[str, Any]) -> str:
     return "other"
 
 
+def first_photo_url(photos: Any) -> Optional[str]:
+    if not photos:
+        return None
+    if isinstance(photos, str):
+        text = photos.strip()
+        if not text:
+            return None
+        if text.startswith("[") or text.startswith("{"):
+            try:
+                import json
+
+                parsed = json.loads(text)
+                return first_photo_url(parsed)
+            except Exception:
+                return text
+        return text
+    if isinstance(photos, list):
+        for photo in photos:
+            if isinstance(photo, str) and photo.strip():
+                return photo.strip()
+            if isinstance(photo, dict):
+                for key in ("url", "src", "big", "c516x688", "square", "tm"):
+                    value = photo.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+        return None
+    if isinstance(photos, dict):
+        for key in ("url", "src", "big", "c516x688", "square", "tm"):
+            value = photos.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return None
+
+
 async def get_pool() -> asyncpg.Pool:
     global pool
     if pool is None:
@@ -152,6 +186,7 @@ async def get_products(
     for row in rows:
         item = row_to_dict(row)
         item["category"] = item.get("category") or infer_category(item)
+        item["photo_url"] = first_photo_url(item.get("photos"))
         items.append(item)
 
     if category:
@@ -185,6 +220,7 @@ async def get_product(sku: str):
         raise HTTPException(status_code=404, detail="Product not found")
     item = row_to_dict(row)
     item["category"] = item.get("category") or infer_category(item)
+    item["photo_url"] = first_photo_url(item.get("photos"))
     return item
 
 

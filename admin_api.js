@@ -54,15 +54,27 @@ async function renderAdminApi(tab) {
   if (admCur === 'dashboard') {
     el.innerHTML = renderLoading('📊 Дашборд');
     try {
-      const [stats, ordersData] = await Promise.all([loadStats(), loadOrders(5)]);
+      const [stats, ordersData, stocksData] = await Promise.all([loadStats(), loadOrders(5), loadStocks()]);
       if (seq !== admRenderSeq) return;
       const ordersList = ordersData.items || [];
+      const stockSources = stocksData.by_source || {};
+      const wbStock = stockSources.wb || { count: 0, units: 0 };
+      const ozonStock = stockSources.ozon || { count: 0, units: 0 };
+      const localStock = stockSources.local || stockSources.manual || { count: 0, units: 0 };
       el.innerHTML = `<h2>📊 Дашборд <span class="sub">реальные данные API</span></h2>
       <div class="metrics">
         <div class="metric"><div class="mv" style="color:var(--orange2)">${fmtMoney(stats.orders?.total_revenue || 0)}</div><div class="ml">Выручка</div></div>
         <div class="metric"><div class="mv">${stats.products?.count || 0}</div><div class="ml">Товаров</div></div>
         <div class="metric"><div class="mv">${stats.orders?.count || 0}</div><div class="ml">Заказов</div></div>
         <div class="metric"><div class="mv">${stats.stocks?.units || 0}</div><div class="ml">Остатков</div></div>
+      </div>
+      <div class="adm-table-wrap" style="margin-bottom:14px">
+        <div class="adm-table-head"><h3>Остатки по источникам</h3><span class="sub">/stocks.by_source</span></div>
+        <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-top:8px">
+          <div class="metric"><div class="mv" style="color:var(--yellow)">${Number(wbStock.units || 0).toLocaleString('ru-RU')}</div><div class="ml">WB · ${Number(wbStock.count || 0)} строк</div></div>
+          <div class="metric"><div class="mv" style="color:var(--blue)">${Number(ozonStock.units || 0).toLocaleString('ru-RU')}</div><div class="ml">Ozon · ${Number(ozonStock.count || 0)} строк</div></div>
+          <div class="metric"><div class="mv" style="color:var(--green)">${Number(localStock.units || 0).toLocaleString('ru-RU')}</div><div class="ml">Склад · ${Number(localStock.count || 0)} строк</div></div>
+        </div>
       </div>
       <div class="adm-table-wrap"><div class="adm-table-head"><h3>Последние заказы</h3><button class="adm-btn sm" onclick="admTab('orders',null)">Все заказы →</button></div>
       <table class="adm-tbl"><thead><tr><th>#</th><th>Клиент</th><th>Сумма</th><th>Статус</th><th>Дата</th></tr></thead><tbody>
@@ -236,9 +248,7 @@ async function renderAdminApi(tab) {
       </div>
       <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>Фото</th><th>Название</th><th>Категория</th><th>Цена</th><th>Остаток</th><th>Источник</th></tr></thead><tbody>
       ${rows.length ? rows.map(p => {
-        const photo = Array.isArray(p.photos)
-          ? (p.photos.find(x => typeof x === 'string') || (p.photos[0] && (p.photos[0].big || p.photos[0].c516x688 || p.photos[0].square || p.photos[0].tm || p.photos[0].url || p.photos[0].src)) || '')
-          : (typeof p.photos === 'string' ? p.photos : '');
+        const photo = p.photo_url || p.photos?.[0]?.url || '';
         const cat = p.category || 'fishing';
         return `<tr>
           <td><img src="${escHtml(photo || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=80&h=80&fit=crop')}" style="width:44px;height:44px;object-fit:cover;border:1px solid var(--border);border-radius:3px" onerror="this.style.display='none'"></td>
