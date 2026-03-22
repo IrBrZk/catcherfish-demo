@@ -211,7 +211,7 @@ function buildProductCard(p){
         <div class="pp-row"><span class="pp">${fmt(p.price)}</span><span class="pold">${fmt(p.old)}</span><span class="pdisc">−${disc}%</span></div>
         ${stk}
         <div class="pa">
-          <button class="btn-buy${ic?' ic':''}" id="bb-${p.id}" onclick="addCart(${p.id})">${ic?'✓ В корзине':'🛒 В корзину'}</button>
+          <button class="btn-buy${ic?' ic':''}" id="bb-${p.id}" onclick="addCart(${JSON.stringify(String(p.id))})">${ic?'✓ В корзине':'🛒 В корзину'}</button>
           <button class="btn-fav">♡</button>
         </div>
       </div>
