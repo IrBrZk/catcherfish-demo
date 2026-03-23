@@ -36,6 +36,7 @@ let syncLog=[
 ];
 
 const fmt=n=>n.toLocaleString('ru-RU')+' ₽';
+const escHtml=v=>String(v ?? '').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
 function inferCatFromProduct(p){
   const text=`${p.name||''} ${p.description||''} ${p.brand||''}`.toLowerCase();
@@ -130,6 +131,7 @@ function showPage(name){
   document.getElementById('page-'+name).classList.add('active');
   document.querySelectorAll('.mni').forEach(b=>b.classList.remove('act'));
   if(name==='catalog') document.getElementById('nav-cat')?.classList.add('act');
+  if(name==='account') buyerRefreshAccount().catch(()=>{});
   if(name==='admin') renderAdmin('dashboard');
   window.scrollTo(0,0);
 }
@@ -139,24 +141,168 @@ function toggleLKPanel(){
   const panel=document.getElementById('lk-panel');
   if(!panel) return;
   panel.classList.toggle('open');
-}
-function submitLK(){
-  const pass=document.getElementById('lk-pass');
-  if(!pass) return;
-  const value=pass.value.trim().toLowerCase();
-  if(!value){toast('Введите пароль',false);return;}
-  if(value==='admin'){
-    toast('Доступ администратора подтверждён.');
-    pass.value='';
-    document.getElementById('lk-user').value='';
-    toggleLKPanel();
-    showPage('admin');
-  } else {
-    toast('Неверный пароль',false);
+  const profile = safeParseBuyerProfile();
+  if(panel.classList.contains('open') && profile){
+    const name = document.getElementById('lk-name');
+    const phone = document.getElementById('lk-phone');
+    const email = document.getElementById('lk-email');
+    if(name && !name.value) name.value = profile.name || '';
+    if(phone && !phone.value) phone.value = profile.phone || '';
+    if(email && !email.value) email.value = profile.email || '';
   }
 }
+const BUYER_SESSION_KEY='cfBuyerProfile';
+function normalizeBuyerPhone(value){
+  const digits=String(value||'').replace(/\D/g,'');
+  if(!digits) return '';
+  if(digits.length===10) return `+7${digits}`;
+  if(digits.length===11 && digits.startsWith('8')) return `+7${digits.slice(1)}`;
+  if(digits.length===11 && digits.startsWith('7')) return `+${digits}`;
+  return digits.startsWith('+') ? digits : `+${digits}`;
+}
+function safeParseBuyerProfile(){
+  try { return JSON.parse(localStorage.getItem(BUYER_SESSION_KEY)||'null'); } catch(e){ return null; }
+}
+function saveBuyerProfile(profile){
+  const payload = profile ? {
+    name: profile.name || '',
+    phone: profile.phone || '',
+    email: profile.email || '',
+    created_at: profile.created_at || '',
+    orders_count: Number(profile.orders_count || 0),
+  } : null;
+  if(payload) localStorage.setItem(BUYER_SESSION_KEY, JSON.stringify(payload));
+  else localStorage.removeItem(BUYER_SESSION_KEY);
+  window.cfBuyerProfile = payload;
+  return payload;
+}
+function buyerPhoneLabel(phone){
+  const digits = String(phone||'').replace(/\D/g,'');
+  if(digits.length===11 && digits.startsWith('7')) return `+7 (${digits.slice(1,4)}) ${digits.slice(4,7)}-${digits.slice(7,9)}-${digits.slice(9,11)}`;
+  return String(phone||'');
+}
+function buyerStatusLabel(status){
+  const map={new:'Принят',proc:'Собирается',send:'Отправлен',done:'Доставлен',cancelled:'Отменён'};
+  return map[String(status||'new').toLowerCase()] || String(status||'new');
+}
+function buyerOrderStage(status){
+  const value=String(status||'new').toLowerCase();
+  if(value==='done') return 100;
+  if(value==='send') return 75;
+  if(value==='proc') return 50;
+  if(value==='new') return 20;
+  if(value==='cancelled') return 0;
+  return 10;
+}
+function buyerItemsLabel(items){
+  if(!Array.isArray(items)) return '—';
+  return items.map(i=>`${i.name || 'Товар'} ×${i.qty || i.quantity || 1}`).join(', ');
+}
+function buyerRenderAccount(profile, rows){
+  const accountPage = document.getElementById('page-account');
+  const summary = document.getElementById('lk-profile-summary');
+  const ordersBody = document.getElementById('lk-orders-body');
+  if(!accountPage || !summary || !ordersBody) return;
+  const safeProfile = profile || safeParseBuyerProfile();
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const openCount = safeRows.filter(o => ['new','proc'].includes(String(o.status || '').toLowerCase())).length;
+  const deliveryCount = safeRows.filter(o => ['send'].includes(String(o.status || '').toLowerCase())).length;
+  document.getElementById('lk-orders-count').textContent = String(safeRows.length);
+  document.getElementById('lk-open-count').textContent = String(openCount);
+  document.getElementById('lk-delivery-count').textContent = String(deliveryCount);
+  summary.innerHTML = safeProfile
+    ? `<strong>${safeProfile.name || 'Покупатель'}</strong><br>${buyerPhoneLabel(safeProfile.phone)}<br>${safeProfile.email ? escHtml(safeProfile.email) + '<br>' : ''}Заказов: ${safeRows.length}`
+    : 'Войдите по телефону, чтобы увидеть историю заказов и статус доставки.';
+  if(!safeRows.length){
+    ordersBody.innerHTML = '<tr><td colspan="6" style="padding:28px;color:var(--muted);text-align:center">Заказов пока нет</td></tr>';
+    return;
+  }
+  ordersBody.innerHTML = safeRows.map(order => {
+    const stage = buyerOrderStage(order.status);
+    return `<tr>
+      <td class="mono">#${escHtml(order.id || order.order_id || '—')}</td>
+      <td style="font-size:12px;color:var(--muted);max-width:260px">${escHtml(buyerItemsLabel(order.items))}</td>
+      <td class="bold" style="color:var(--orange2)">${fmt(Number(order.total || order.total_amount || 0))}</td>
+      <td><span class="stbadge st-${escHtml(String(order.status || 'new').toLowerCase())}">${escHtml(buyerStatusLabel(order.status))}</span><div style="font-size:11px;color:var(--muted);margin-top:4px">Этап ${stage}%</div></td>
+      <td style="font-size:12px;color:var(--muted)">${escHtml(order.tracking_number || '—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${escHtml(order.date || order.created_at || '—')}</td>
+    </tr>`;
+  }).join('');
+}
+async function buyerRefreshAccount(){
+  const profile = safeParseBuyerProfile();
+  if(!profile || !profile.phone){
+    buyerRenderAccount(null, []);
+    return;
+  }
+  try{
+    const data = await fetch(`${window.API_BASE}/lk/orders?phone=${encodeURIComponent(profile.phone)}&limit=50`).then(r=>{
+      if(!r.ok) throw new Error(`API ${r.status}`);
+      return r.json();
+    });
+    buyerRenderAccount(profile, data.items || []);
+  }catch(err){
+    toast(`Не удалось обновить ЛК: ${err.message}`, false);
+  }
+}
+async function buyerLoginOrRegister(mode='login'){
+  const name = document.getElementById('lk-name')?.value.trim() || '';
+  const phoneInput = document.getElementById('lk-phone')?.value.trim() || '';
+  const email = document.getElementById('lk-email')?.value.trim() || '';
+  const pass = document.getElementById('lk-pass')?.value.trim().toLowerCase() || '';
+  if(pass==='admin'){
+    toast('Доступ администратора подтверждён.');
+    document.getElementById('lk-pass').value='';
+    toggleLKPanel();
+    showPage('admin');
+    return;
+  }
+  const phone = normalizeBuyerPhone(phoneInput);
+  if(!phone){
+    toast('Введите телефон', false);
+    return;
+  }
+  if(mode==='register' && !name){
+    toast('Введите имя для регистрации', false);
+    return;
+  }
+  const payload = {name: name || 'Покупатель', phone, email};
+  const endpoint = mode==='register' ? '/lk/register' : '/lk/login';
+  try{
+    const resp = await fetch(`${window.API_BASE}${endpoint}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if(!resp.ok){
+      if(mode==='login' && resp.status === 404){
+        toast('Пользователь не найден. Зарегистрируйтесь.', false);
+        return;
+      }
+      throw new Error(`API ${resp.status}`);
+    }
+    const data = await resp.json();
+    const user = saveBuyerProfile({
+      name: data.user?.name || name || 'Покупатель',
+      phone: data.user?.phone || phone,
+      email: data.user?.email || email,
+      created_at: data.user?.created_at || '',
+      orders_count: data.orders_count || 0,
+    });
+    toggleLKPanel();
+    showPage('account');
+    await buyerRefreshAccount();
+    toast(mode==='register' ? 'Кабинет создан' : 'Вход выполнен');
+    return user;
+  }catch(err){
+    toast(`Не удалось войти в кабинет: ${err.message}`, false);
+  }
+}
+function submitLK(){
+  buyerLoginOrRegister('login');
+}
 function registerLK(){
-  toast('Регистрация временно недоступна. Обратитесь к менеджеру.');
+  buyerLoginOrRegister('register');
 }
 document.addEventListener('click',e=>{
   const panel=document.getElementById('lk-panel');
@@ -267,7 +413,20 @@ function chQ(id,d){const i=cart.find(c=>c.id===id);if(!i)return;i.qty+=d;if(i.qt
 function remCart(id){cart=cart.filter(c=>c.id!==id);updCart();renderCart();renderCatalog();}
 
 // ── ORDER ─────────────────────────────────────────────────────────────────
-function openOrder(){closeCart();updOrds();document.getElementById('mod-ov').classList.add('open');}
+function openOrder(){
+  closeCart();
+  const profile = safeParseBuyerProfile();
+  if(profile){
+    const fn = document.getElementById('fn');
+    const fph = document.getElementById('fph');
+    const fem = document.getElementById('fem');
+    if(fn && !fn.value) fn.value = profile.name || '';
+    if(fph && !fph.value) fph.value = profile.phone || '';
+    if(fem && !fem.value && profile.email) fem.value = profile.email;
+  }
+  updOrds();
+  document.getElementById('mod-ov').classList.add('open');
+}
 function closeMod(){document.getElementById('mod-ov').classList.remove('open');}
 function movClick(e){if(e.target===document.getElementById('mod-ov'))closeMod();}
 function selD(el,cost){document.querySelectorAll('.dopt').forEach(o=>o.classList.remove('sel'));el.classList.add('sel');delCost=cost;updOrds();}
@@ -285,6 +444,8 @@ async function placeOrder(){
   if(!cart.length){toast('Корзина пуста',false);return;}
   const sub=cart.reduce((s,c)=>s+c.price*c.qty,0);
   const pay = document.getElementById('fpay').value;
+  const email = document.getElementById('fem').value.trim();
+  const address = document.getElementById('fadr').value.trim();
   const orderDate = new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const payload = {
     order_id: `CF-${Date.now().toString(36).toUpperCase()}`,
@@ -293,6 +454,7 @@ async function placeOrder(){
     total_amount: sub + delCost,
     customer_name: n,
     customer_phone: ph,
+    customer_email: email,
     payment_method: pay,
     payment_status: 'pending',
     items: cart.map(c => ({
@@ -302,8 +464,7 @@ async function placeOrder(){
       price: c.price,
     })),
     delivery_method: 'pickup_or_delivery',
-    delivery_address: '',
-    customer_email: '',
+    delivery_address: address,
   };
 
   let saved = null;
@@ -342,9 +503,18 @@ async function placeOrder(){
   const exc=clients.find(c=>c.phone===ph);
   if(exc){exc.orders++;exc.total+=order.total;exc.last=order.date;}
   else clients.push({name:n,phone:ph,orders:1,total:order.total,last:order.date,type:'ret'});
+  const existingBuyer = safeParseBuyerProfile();
+  saveBuyerProfile({
+    name: n,
+    phone: normalizeBuyerPhone(ph),
+    email,
+    created_at: existingBuyer?.created_at || new Date().toISOString(),
+    orders_count: Number(existingBuyer?.orders_count || 0) + 1,
+  });
   syncLog.unshift({time:order.date,event:`Заказ ${num} создан и передан в систему`,status:'ok'});
   cart=[];updCart();renderCatalog();
   loadCatalogFromAPI().catch(()=>{});
+  buyerRefreshAccount().catch(()=>{});
   closeMod();
   document.getElementById('snum').textContent='#'+num;
   document.getElementById('succ-ov').classList.add('open');

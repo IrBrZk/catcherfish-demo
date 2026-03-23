@@ -228,6 +228,123 @@ async def table_columns(conn: asyncpg.Connection, table_name: str) -> set[str]:
     return {row["column_name"] for row in rows}
 
 
+def normalize_phone(phone: Any) -> str:
+    digits = re.sub(r"\D", "", str(phone or ""))
+    if not digits:
+        return ""
+    if len(digits) == 10:
+        digits = "7" + digits
+    elif len(digits) == 11 and digits.startswith("8"):
+        digits = "7" + digits[1:]
+    return f"+{digits}"
+
+
+def format_phone(phone: Any) -> str:
+    digits = re.sub(r"\D", "", str(phone or ""))
+    if len(digits) == 11 and digits.startswith("7"):
+        return f"+7 ({digits[1:4]}) {digits[4:7]}-{digits[7:9]}-{digits[9:11]}"
+    return str(phone or "")
+
+
+async def get_user_by_phone(conn: asyncpg.Connection, phone: str) -> Optional[asyncpg.Record]:
+    if not phone:
+        return None
+    return await conn.fetchrow(
+        """
+        SELECT id, telegram_id, email, phone, name, role, is_admin, created_at
+        FROM users
+        WHERE phone = $1
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        phone,
+    )
+
+
+async def upsert_user(
+    conn: asyncpg.Connection,
+    *,
+    name: str,
+    phone: str,
+    email: str = "",
+) -> asyncpg.Record:
+    phone = normalize_phone(phone)
+    email = str(email or "").strip()
+    name = str(name or "").strip()
+    user = await get_user_by_phone(conn, phone)
+    if user:
+        await conn.execute(
+            """
+            UPDATE users
+            SET name = COALESCE(NULLIF($1, ''), name),
+                email = COALESCE(NULLIF($2, ''), email)
+            WHERE id = $3
+            """,
+            name,
+            email,
+            user["id"],
+        )
+        return await conn.fetchrow(
+            """
+            SELECT id, telegram_id, email, phone, name, role, is_admin, created_at
+            FROM users
+            WHERE id = $1
+            """,
+            user["id"],
+        )
+
+    user_id = await conn.fetchval(
+        """
+        INSERT INTO users (phone, name, email, role, is_admin, created_at)
+        VALUES ($1, $2, $3, 'customer', FALSE, NOW())
+        RETURNING id
+        """,
+        phone,
+        name,
+        email or None,
+    )
+    return await conn.fetchrow(
+        """
+        SELECT id, telegram_id, email, phone, name, role, is_admin, created_at
+        FROM users
+        WHERE id = $1
+        """,
+        user_id,
+    )
+
+
+async def get_orders_for_phone(conn: asyncpg.Connection, phone: str, limit: int = 50) -> List[asyncpg.Record]:
+    phone = normalize_phone(phone)
+    if not phone:
+        return []
+    order_cols = await table_columns(conn, "orders")
+    exprs = order_select_exprs(order_cols)
+    rows = await conn.fetch(
+        f"""
+        SELECT
+            {exprs['order_id']} AS order_id,
+            {exprs['status']} AS status,
+            {exprs['total']} AS total,
+            {exprs['name']} AS customer_name,
+            {exprs['phone']} AS customer_phone,
+            {exprs['email']} AS customer_email,
+            {exprs['items']} AS items,
+            {exprs['created_at']} AS created_at,
+            {exprs['marketplace']} AS marketplace,
+            {exprs['payment_method']} AS payment_method,
+            {exprs['payment_status']} AS payment_status,
+            {exprs['tracking_number']} AS tracking_number
+        FROM orders
+        WHERE customer_phone = $1
+        ORDER BY {exprs['created_at']} DESC, id DESC
+        LIMIT $2
+        """,
+        phone,
+        limit,
+    )
+    return rows
+
+
 @app.on_event("startup")
 async def startup() -> None:
     await get_pool()
@@ -428,6 +545,7 @@ async def get_orders(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     status: Optional[str] = None,
+    phone: Optional[str] = None,
 ):
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
@@ -464,10 +582,85 @@ async def get_orders(
         item["total"] = item.get("total") or item.get("total_amount") or item.get("amount") or 0
         item["date"] = item.get("created_at") or item.get("date")
         items.append(item)
+    if phone:
+        phone_norm = normalize_phone(phone)
+        items = [
+            item for item in items
+            if normalize_phone(item.get("phone") or item.get("customer_phone")) == phone_norm
+        ]
     if status:
         items = [item for item in items if str(item.get("status", "")).lower() == status.lower()]
     total = len(items)
     return {"items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
+
+
+@app.post("/lk/register")
+async def lk_register(payload: Dict[str, Any]):
+    name = str(payload.get("name") or "").strip()
+    phone = str(payload.get("phone") or "").strip()
+    email = str(payload.get("email") or "").strip()
+    if not name or not phone:
+        raise HTTPException(status_code=400, detail="name and phone are required")
+    pool_ = await get_pool()
+    async with pool_.acquire() as conn:
+        user = await upsert_user(conn, name=name, phone=phone, email=email)
+        orders = await get_orders_for_phone(conn, user["phone"], limit=50)
+    return {
+        "user": normalize(dict(user)),
+        "phone_display": format_phone(user["phone"]),
+        "orders_count": len(orders),
+    }
+
+
+@app.post("/lk/login")
+async def lk_login(payload: Dict[str, Any]):
+    phone = normalize_phone(payload.get("phone") or "")
+    if not phone:
+        raise HTTPException(status_code=400, detail="phone is required")
+    pool_ = await get_pool()
+    async with pool_.acquire() as conn:
+        user = await get_user_by_phone(conn, phone)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        orders = await get_orders_for_phone(conn, phone, limit=50)
+    return {
+        "user": normalize(dict(user)),
+        "phone_display": format_phone(phone),
+        "orders_count": len(orders),
+    }
+
+
+@app.get("/lk/me")
+async def lk_me(phone: str = Query(..., min_length=5)):
+    phone_norm = normalize_phone(phone)
+    pool_ = await get_pool()
+    async with pool_.acquire() as conn:
+        user = await get_user_by_phone(conn, phone_norm)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        orders = await get_orders_for_phone(conn, phone_norm, limit=50)
+    return {
+        "user": normalize(dict(user)),
+        "phone_display": format_phone(phone_norm),
+        "orders_count": len(orders),
+    }
+
+
+@app.get("/lk/orders")
+async def lk_orders(phone: str = Query(..., min_length=5), limit: int = Query(50, ge=1, le=100)):
+    phone_norm = normalize_phone(phone)
+    pool_ = await get_pool()
+    async with pool_.acquire() as conn:
+        rows = await get_orders_for_phone(conn, phone_norm, limit=limit)
+    items = [row_to_dict(row) for row in rows]
+    for item in items:
+        item["id"] = item.get("id") or item.get("order_id")
+        item["name"] = item.get("customer_name") or item.get("name")
+        item["phone"] = item.get("customer_phone") or item.get("phone")
+        item["total"] = item.get("total") or item.get("total_amount") or item.get("amount") or 0
+        item["date"] = item.get("created_at") or item.get("date")
+        item["tracking"] = item.get("tracking_number") or ""
+    return {"items": items, "total": len(items), "phone": phone_norm, "phone_display": format_phone(phone_norm)}
 
 
 @app.post("/orders")
@@ -477,7 +670,7 @@ async def create_order(payload: Dict[str, Any]):
     marketplace = str(payload.get("marketplace") or "website")
     status = str(payload.get("status") or "new")
     customer_name = str(payload.get("customer_name") or payload.get("name") or "")
-    customer_phone = str(payload.get("customer_phone") or payload.get("phone") or "")
+    customer_phone = normalize_phone(payload.get("customer_phone") or payload.get("phone") or "")
     customer_email = str(payload.get("customer_email") or payload.get("email") or "")
     delivery_method = str(payload.get("delivery_method") or "")
     delivery_address = str(payload.get("delivery_address") or "")
@@ -544,6 +737,8 @@ async def create_order(payload: Dict[str, Any]):
             if col not in {"order_id", "created_at"}
         )
         async with conn.transaction():
+            if customer_phone and customer_name:
+                await upsert_user(conn, name=customer_name, phone=customer_phone, email=customer_email)
             await conn.execute(
                 f"""
                 INSERT INTO orders ({insert_cols_sql})

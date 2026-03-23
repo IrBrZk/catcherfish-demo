@@ -76,13 +76,52 @@
 
 <div class="lk-panel" id="lk-panel">
   <h3>Личный кабинет</h3>
-  <input id="lk-user" placeholder="Логин">
-  <input id="lk-pass" type="password" placeholder="Пароль">
+  <input id="lk-name" placeholder="Имя покупателя">
+  <input id="lk-phone" placeholder="Телефон">
+  <input id="lk-email" placeholder="Email (необязательно)">
+  <input id="lk-pass" type="password" placeholder="Код администратора">
   <div class="lk-actions">
     <button class="adm-btn sm" onclick="submitLK()">Войти</button>
     <button class="adm-btn sm or" onclick="registerLK()">Регистрация</button>
   </div>
-  <p class="lk-hint">Введите «admin» в качестве пароля, чтобы открыть панель администратора.</p>
+  <p class="lk-hint">Покупатель: имя и телефон. Админка: введите «admin» в поле кода.</p>
+</div>
+
+<!-- == PAGE: ACCOUNT == -->
+<div class="page" id="page-account">
+  <div class="breadcrumb"><div class="bc-i"><a href="#" onclick="showPage('catalog');return false">Главная</a> › Личный кабинет</div></div>
+  <div class="info-page">
+    <aside>
+      <div class="sb-box">
+        <div class="sb-t">Профиль</div>
+        <div class="info-sb" id="lk-profile-summary">Войдите по телефону, чтобы увидеть историю заказов и статус доставки.</div>
+      </div>
+      <div class="sb-box">
+        <div class="sb-t">Быстрый доступ</div>
+        <div class="info-sb">
+          <button class="adm-btn sm" style="width:100%;justify-content:center;margin-bottom:8px" onclick="buyerRefreshAccount()">Обновить</button>
+          <button class="adm-btn sm or" style="width:100%;justify-content:center" onclick="toggleLKPanel()">Сменить профиль</button>
+        </div>
+      </div>
+    </aside>
+    <div class="info-c">
+      <h1>👤 Личный кабинет</h1>
+      <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+        <div class="metric"><div class="mv" id="lk-orders-count">0</div><div class="ml">Заказов</div></div>
+        <div class="metric"><div class="mv" id="lk-open-count">0</div><div class="ml">В обработке</div></div>
+        <div class="metric"><div class="mv" id="lk-delivery-count">0</div><div class="ml">В доставке</div></div>
+      </div>
+      <div class="adm-table-wrap">
+        <div class="adm-table-head"><h3>История заказов</h3><span class="sub">Статусы и трек-номера</span></div>
+        <table class="adm-tbl">
+          <thead><tr><th>#</th><th>Товары</th><th>Итого</th><th>Статус</th><th>Трек</th><th>Дата</th></tr></thead>
+          <tbody id="lk-orders-body">
+            <tr><td colspan="6" style="padding:28px;color:var(--muted);text-align:center">Войдите, чтобы увидеть заказы</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ══ PAGE: CATALOG ══ -->

@@ -39,6 +39,15 @@ def make_order_id(prefix: str = "CF") -> str:
     return f"{prefix}-{stamp}-{suffix}"
 
 
+def normalize_phone(phone: str) -> str:
+    digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
+    if len(digits) == 10:
+        digits = "7" + digits
+    elif len(digits) == 11 and digits.startswith("8"):
+        digits = "7" + digits[1:]
+    return f"+{digits}" if digits else ""
+
+
 def _load_product(cursor, sku: str) -> Optional[Dict[str, Any]]:
     cursor.execute(
         """
@@ -111,6 +120,7 @@ def create_order_from_cart(
         raise ValueError("Cart is empty")
 
     order_id = make_order_id()
+    customer_phone = normalize_phone(customer_phone)
     with connection() as conn:
         with conn.cursor() as cur:
             reserved_items = _reserve_items(cur, cart)
