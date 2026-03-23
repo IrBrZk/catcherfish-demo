@@ -251,6 +251,25 @@ async def table_columns(conn: asyncpg.Connection, table_name: str) -> set[str]:
     return {row["column_name"] for row in rows}
 
 
+async def orders_supports_order_id_conflict(conn: asyncpg.Connection) -> bool:
+    return bool(
+        await conn.fetchval(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_index i
+                JOIN pg_class t ON t.oid = i.indrelid
+                JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = i.indkey[0]
+                WHERE t.relname = 'orders'
+                  AND i.indisunique
+                  AND i.indnatts = 1
+                  AND a.attname = 'order_id'
+            )
+            """
+        )
+    )
+
+
 def normalize_phone(phone: Any) -> str:
     digits = re.sub(r"\D", "", str(phone or ""))
     if not digits:
@@ -1171,21 +1190,30 @@ async def create_order(payload: Dict[str, Any]):
         values = [reserved_columns[col] for col in insert_columns]
         placeholders = ", ".join(f"${i}" for i in range(1, len(insert_columns) + 1))
         insert_cols_sql = ", ".join(insert_columns)
-        update_sets = ", ".join(
-            f"{col} = EXCLUDED.{col}"
-            for col in insert_columns
-            if col not in {"order_id", "created_at"}
-        )
         async with conn.transaction():
-            await conn.execute(
-                f"""
-                INSERT INTO orders ({insert_cols_sql})
-                VALUES ({placeholders})
-                ON CONFLICT (order_id) DO UPDATE SET
-                    {update_sets}
-                """,
-                *values,
-            )
+            if await orders_supports_order_id_conflict(conn):
+                update_sets = ", ".join(
+                    f"{col} = EXCLUDED.{col}"
+                    for col in insert_columns
+                    if col not in {"order_id", "created_at"}
+                )
+                await conn.execute(
+                    f"""
+                    INSERT INTO orders ({insert_cols_sql})
+                    VALUES ({placeholders})
+                    ON CONFLICT (order_id) DO UPDATE SET
+                        {update_sets}
+                    """,
+                    *values,
+                )
+            else:
+                await conn.execute(
+                    f"""
+                    INSERT INTO orders ({insert_cols_sql})
+                    VALUES ({placeholders})
+                    """,
+                    *values,
+                )
 
             if await table_exists(conn, "guest_sessions"):
                 guest_cols = await table_columns(conn, "guest_sessions")
