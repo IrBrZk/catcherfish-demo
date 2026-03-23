@@ -337,6 +337,14 @@ async function buyerLoginOrRegister(mode='login'){
       throw new Error(`API ${resp.status}`);
     }
     const data = await resp.json();
+    const isAdmin = Boolean(data?.user?.is_admin) || String(data?.user?.role || '').toLowerCase() === 'admin';
+    if (isAdmin) {
+      document.getElementById('lk-pass').value='';
+      toggleLKPanel();
+      showPage('admin');
+      toast('Доступ администратора подтверждён.');
+      return data.user;
+    }
     const user = saveBuyerProfile({
       name: data.user?.name || name || 'Покупатель',
       phone: data.user?.phone || phone,

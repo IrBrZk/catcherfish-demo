@@ -1,0 +1,31 @@
+<!-- website/templates/cart.html -->
+<div id="cart-modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeCart()">&times;</span>
+
+    <h2>🛒 Корзина</h2>
+
+    <div id="cart-items">
+      <!-- Товары загружаются через JS -->
+    </div>
+
+    <div class="cart-total">
+      <p>Итого: <span id="cart-total-amount">0 ₽</span></p>
+    </div>
+
+    <button onclick="goToCheckout()" class="btn-primary">
+      🚀 Оформить заказ
+    </button>
+  </div>
+</div>
+
+<script>
+// Сохранение корзины в localStorage для гостей
+function saveCartToStorage(cart) {
+  localStorage.setItem('catcherfish_cart', JSON.stringify(cart));
+}
+
+function loadCartFromStorage() {
+  return JSON.parse(localStorage.getItem('catcherfish_cart') || '[]');
+}
+</script>

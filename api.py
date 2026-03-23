@@ -980,6 +980,7 @@ async def create_order(payload: Dict[str, Any]):
                         )
 
     return {
+        "success": True,
         "order_id": order_id,
         "marketplace": marketplace,
         "status": status,

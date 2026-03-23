@@ -17,6 +17,150 @@ from uuid import uuid4
 from database.db import execute, fetch_one
 
 
+def _json_loads(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return json.loads(text)
+        except Exception:
+            return value
+    return value
+
+
+def _first_image(images: Any) -> str:
+    data = _json_loads(images)
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, str) and item.strip():
+                return item.strip()
+            if isinstance(item, dict):
+                for key in ("url", "src", "big", "c516x688", "square", "tm"):
+                    value = item.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+    if isinstance(data, dict):
+        for key in ("url", "src", "big", "c516x688", "square", "tm"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    if isinstance(data, str) and data.strip():
+        return data.strip()
+    return ""
+
+
+def get_product_by_sku(sku: str) -> Optional[Dict[str, Any]]:
+    return fetch_one(
+        """
+        SELECT
+            sku,
+            name,
+            COALESCE(price_retail, price_wb, price_ozon, price_buy, price, 0) AS price_retail,
+            COALESCE(stock_available, stock_total, stock, 0) AS stock_available,
+            COALESCE(images, photos) AS images
+        FROM products
+        WHERE sku = %s
+        """,
+        (str(sku),),
+    )
+
+
+def normalize_guest_session_token(session_id: Optional[str]) -> str:
+    token = str(session_id or "").strip()
+    if token:
+        return token
+    return f"gst_{uuid4().hex}"
+
+
+def get_or_create_guest_session(session_id: Optional[str]) -> Dict[str, Any]:
+    token = normalize_guest_session_token(session_id)
+    row = fetch_one(
+        """
+        SELECT session_token, customer_phone, customer_email, cart_items, created_at, expires_at
+        FROM guest_sessions
+        WHERE session_token = %s
+        """,
+        (token,),
+    )
+    if row:
+        row["cart_items"] = _json_loads(row.get("cart_items")) or []
+        return row
+
+    execute(
+        """
+        INSERT INTO guest_sessions (
+            session_token, customer_phone, customer_email, cart_items, created_at, expires_at
+        )
+        VALUES (%s, %s, %s, %s::jsonb, NOW(), NOW() + INTERVAL '24 hours')
+        """,
+        (token, "", "", json.dumps([])),
+    )
+    return {
+        "session_token": token,
+        "customer_phone": "",
+        "customer_email": "",
+        "cart_items": [],
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow(),
+    }
+
+
+def update_guest_session(session_id: Optional[str], cart_items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    token = normalize_guest_session_token(session_id)
+    payload = json.dumps(cart_items or [])
+    execute(
+        """
+        INSERT INTO guest_sessions (
+            session_token, customer_phone, customer_email, cart_items, created_at, expires_at
+        )
+        VALUES (%s, %s, %s, %s::jsonb, NOW(), NOW() + INTERVAL '24 hours')
+        ON CONFLICT (session_token) DO UPDATE SET
+            cart_items = EXCLUDED.cart_items,
+            expires_at = NOW() + INTERVAL '24 hours'
+        """,
+        (token, "", "", payload),
+    )
+    return get_or_create_guest_session(token)
+
+
+def add_to_cart(session_id: Optional[str], sku: str, quantity: int):
+    """
+    Добавление товара в корзину для гостя
+    """
+    qty = max(1, int(quantity or 1))
+    product = get_product_by_sku(sku)
+    if not product:
+        return {"error": "Товар не найден"}
+
+    if int(product.get("stock_available") or 0) < qty:
+        return {"error": "Недостаточно товара"}
+
+    session = get_or_create_guest_session(session_id)
+    cart_items = list(_json_loads(session.get("cart_items")) or [])
+
+    for item in cart_items:
+        if str(item.get("sku") or "") == str(sku):
+            item["quantity"] = int(item.get("quantity") or 0) + qty
+            break
+    else:
+        cart_items.append({
+            "sku": str(sku),
+            "name": product["name"],
+            "price": float(product.get("price_retail") or 0),
+            "quantity": qty,
+            "image": _first_image(product.get("images")),
+        })
+
+    update_guest_session(session.get("session_token") or session_id, cart_items)
+
+    return {"success": True, "cart_count": len(cart_items)}
+
+
 @dataclass
 class CartItem:
     sku: str
@@ -150,4 +294,3 @@ class CartSession:
                     self.total_amount,
                 ),
             )
-
