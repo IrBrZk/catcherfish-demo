@@ -276,6 +276,22 @@ async def get_user_by_phone(conn: asyncpg.Connection, phone: str) -> Optional[as
     )
 
 
+async def get_user_by_email(conn: asyncpg.Connection, email: str) -> Optional[asyncpg.Record]:
+    email = str(email or "").strip().lower()
+    if not email:
+        return None
+    return await conn.fetchrow(
+        """
+        SELECT id, telegram_id, email, phone, name, role, is_admin, created_at
+        FROM users
+        WHERE LOWER(email) = $1
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        email,
+    )
+
+
 async def upsert_user(
     conn: asyncpg.Connection,
     *,
@@ -326,6 +342,60 @@ async def upsert_user(
         """,
         user_id,
     )
+
+
+async def get_orders_for_email(conn: asyncpg.Connection, email: str, limit: int = 50) -> List[asyncpg.Record]:
+    email_norm = str(email or "").strip().lower()
+    if not email_norm:
+        return []
+    order_cols = await table_columns(conn, "orders")
+    exprs = order_select_exprs(order_cols)
+    rows = await conn.fetch(
+        f"""
+        SELECT
+            {exprs['order_id']} AS order_id,
+            {exprs['status']} AS status,
+            {exprs['total']} AS total,
+            {exprs['user_id']} AS user_id,
+            {exprs['name']} AS customer_name,
+            {exprs['phone']} AS customer_phone,
+            {exprs['email']} AS customer_email,
+            {exprs['items']} AS items,
+            {exprs['created_at']} AS created_at,
+            {exprs['marketplace']} AS marketplace,
+            {exprs['payment_method']} AS payment_method,
+            {exprs['payment_status']} AS payment_status,
+            {exprs['tracking_number']} AS tracking_number,
+            {exprs['delivery_method']} AS delivery_method,
+            {exprs['delivery_address']} AS delivery_address,
+            {exprs['comment']} AS comment,
+            {exprs['is_guest']} AS is_guest,
+            {exprs['registered_after_order']} AS registered_after_order
+        FROM orders
+        WHERE LOWER(COALESCE({exprs['email']}, '')) = $1
+        ORDER BY {exprs['created_at']} DESC, id DESC
+        LIMIT $2
+        """,
+        email_norm,
+        limit,
+    )
+    return rows
+
+
+async def get_orders_for_identity(
+    conn: asyncpg.Connection,
+    *,
+    phone: str = "",
+    email: str = "",
+    limit: int = 50,
+) -> List[asyncpg.Record]:
+    phone_norm = normalize_phone(phone)
+    email_norm = str(email or "").strip().lower()
+    if phone_norm:
+        return await get_orders_for_phone(conn, phone_norm, limit=limit)
+    if email_norm:
+        return await get_orders_for_email(conn, email_norm, limit=limit)
+    return []
 
 
 async def get_orders_for_phone(conn: asyncpg.Connection, phone: str, limit: int = 50) -> List[asyncpg.Record]:
@@ -643,12 +713,12 @@ async def lk_register(payload: Dict[str, Any]):
     name = str(payload.get("name") or "").strip()
     phone = str(payload.get("phone") or "").strip()
     email = str(payload.get("email") or "").strip()
-    if not name or not phone:
-        raise HTTPException(status_code=400, detail="name and phone are required")
+    if not name or not phone or not email:
+        raise HTTPException(status_code=400, detail="name, phone and email are required")
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
         user = await upsert_user(conn, name=name, phone=phone, email=email)
-        orders = await get_orders_for_phone(conn, user["phone"], limit=50)
+        orders = await get_orders_for_identity(conn, phone=user["phone"], email=user["email"], limit=50)
     return {
         "user": normalize(dict(user)),
         "phone_display": format_phone(user["phone"]),
@@ -658,44 +728,56 @@ async def lk_register(payload: Dict[str, Any]):
 
 @app.post("/lk/login")
 async def lk_login(payload: Dict[str, Any]):
-    phone = normalize_phone(payload.get("phone") or "")
-    if not phone:
-        raise HTTPException(status_code=400, detail="phone is required")
+    identity = str(payload.get("identity") or payload.get("phone") or payload.get("email") or "").strip()
+    phone = normalize_phone(identity)
+    email = identity.lower() if "@" in identity else ""
+    if not phone and not email:
+        raise HTTPException(status_code=400, detail="phone or email is required")
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
-        user = await get_user_by_phone(conn, phone)
+        user = await get_user_by_phone(conn, phone) if phone else await get_user_by_email(conn, email)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        orders = await get_orders_for_phone(conn, phone, limit=50)
+        orders = await get_orders_for_identity(conn, phone=user["phone"], email=user["email"], limit=50)
     return {
         "user": normalize(dict(user)),
-        "phone_display": format_phone(phone),
+        "phone_display": format_phone(user["phone"]) if user.get("phone") else "",
         "orders_count": len(orders),
     }
 
 
 @app.get("/lk/me")
-async def lk_me(phone: str = Query(..., min_length=5)):
-    phone_norm = normalize_phone(phone)
+async def lk_me(phone: Optional[str] = None, email: Optional[str] = None):
+    phone_norm = normalize_phone(phone or "")
+    email_norm = str(email or "").strip().lower()
+    if not phone_norm and not email_norm:
+        raise HTTPException(status_code=400, detail="phone or email is required")
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
-        user = await get_user_by_phone(conn, phone_norm)
+        user = await get_user_by_phone(conn, phone_norm) if phone_norm else await get_user_by_email(conn, email_norm)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        orders = await get_orders_for_phone(conn, phone_norm, limit=50)
+        orders = await get_orders_for_identity(conn, phone=user["phone"], email=user["email"], limit=50)
     return {
         "user": normalize(dict(user)),
-        "phone_display": format_phone(phone_norm),
+        "phone_display": format_phone(user["phone"]) if user.get("phone") else "",
         "orders_count": len(orders),
     }
 
 
 @app.get("/lk/orders")
-async def lk_orders(phone: str = Query(..., min_length=5), limit: int = Query(50, ge=1, le=100)):
-    phone_norm = normalize_phone(phone)
+async def lk_orders(
+    phone: Optional[str] = None,
+    email: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=100),
+):
+    phone_norm = normalize_phone(phone or "")
+    email_norm = str(email or "").strip().lower()
+    if not phone_norm and not email_norm:
+        raise HTTPException(status_code=400, detail="phone or email is required")
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
-        rows = await get_orders_for_phone(conn, phone_norm, limit=limit)
+        rows = await get_orders_for_identity(conn, phone=phone_norm, email=email_norm, limit=limit)
     items = [row_to_dict(row) for row in rows]
     for item in items:
         item["id"] = item.get("id") or item.get("order_id")
@@ -704,7 +786,13 @@ async def lk_orders(phone: str = Query(..., min_length=5), limit: int = Query(50
         item["total"] = item.get("total") or item.get("total_amount") or item.get("amount") or 0
         item["date"] = item.get("created_at") or item.get("date")
         item["tracking"] = item.get("tracking_number") or ""
-    return {"items": items, "total": len(items), "phone": phone_norm, "phone_display": format_phone(phone_norm)}
+    return {
+        "items": items,
+        "total": len(items),
+        "phone": phone_norm,
+        "email": email_norm,
+        "phone_display": format_phone(phone_norm) if phone_norm else "",
+    }
 
 
 @app.get("/track/order")
@@ -994,6 +1082,11 @@ async def create_order(payload: Dict[str, Any]):
         "registered_after_order": registered_after_order,
         "created_at": created_at.isoformat(),
     }
+
+
+@app.post("/api/guest-order")
+async def create_guest_order_alias(payload: Dict[str, Any]):
+    return await create_order(payload)
 
 
 @app.get("/sync/log")

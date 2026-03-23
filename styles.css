@@ -49,7 +49,16 @@ input,select,textarea{font-family:'Open Sans',sans-serif}
 
 .lk-panel{position:fixed;top:76px;right:16px;width:260px;background:var(--white);border:1px solid var(--border);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.2);padding:14px;display:none;flex-direction:column;gap:6px;z-index:180}
 .lk-panel.open{display:flex}
+.lk-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .lk-panel h3{margin:0;font-size:15px;color:var(--blue)}
+.lk-close{border:none;background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:0 2px}
+.lk-tabs,.lk-subtabs{display:flex;gap:6px}
+.lk-tab-btn,.lk-kind-btn{flex:1;border:1px solid var(--border);background:#f8fafc;border-radius:4px;padding:7px 8px;font-size:12px;font-weight:600;color:var(--blue2);cursor:pointer}
+.lk-tab-btn.active,.lk-kind-btn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.lk-pane{display:flex;flex-direction:column;gap:6px}
+.lk-field{display:flex;align-items:center;border:1px solid var(--border);border-radius:4px;overflow:hidden;background:#fff}
+.phone-prefix{padding:0 10px;background:#f3f6fb;border-right:1px solid var(--border);color:var(--blue2);font-weight:700;font-size:13px;line-height:34px}
+.lk-field input{border:none!important;flex:1;min-width:0}
 .lk-panel input{width:100%;border:1px solid var(--border);border-radius:4px;padding:8px 10px;font-size:13px}
 .lk-actions{display:flex;gap:6px}
 .lk-panel .lk-hint{font-size:11px;color:var(--muted);margin:0}

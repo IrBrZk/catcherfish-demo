@@ -137,18 +137,56 @@ function showPage(name){
 }
 function setMobActive(el){document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');}
 
+let lkTab='login';
+let lkLoginKind='phone';
+function sanitizePhoneField(input){
+  if(!input) return;
+  const digits=String(input.value || '').replace(/\D/g,'').slice(0, 11);
+  input.value = digits;
+}
+function setLKTab(tab){
+  lkTab = tab === 'register' ? 'register' : 'login';
+  const loginPane = document.getElementById('lk-login-pane');
+  const registerPane = document.getElementById('lk-register-pane');
+  const loginBtn = document.getElementById('lk-tab-login-btn');
+  const registerBtn = document.getElementById('lk-tab-register-btn');
+  if(loginPane) loginPane.classList.toggle('hidden', lkTab !== 'login');
+  if(registerPane) registerPane.classList.toggle('hidden', lkTab !== 'register');
+  if(loginBtn) loginBtn.classList.toggle('active', lkTab === 'login');
+  if(registerBtn) registerBtn.classList.toggle('active', lkTab === 'register');
+}
+function setLKLoginKind(kind){
+  lkLoginKind = kind === 'email' ? 'email' : 'phone';
+  const phoneWrap = document.getElementById('lk-login-phone-wrap');
+  const emailInput = document.getElementById('lk-login-email');
+  const phoneBtn = document.getElementById('lk-kind-phone-btn');
+  const emailBtn = document.getElementById('lk-kind-email-btn');
+  if(phoneWrap) phoneWrap.classList.toggle('hidden', lkLoginKind !== 'phone');
+  if(emailInput) emailInput.classList.toggle('hidden', lkLoginKind !== 'email');
+  if(phoneBtn) phoneBtn.classList.toggle('active', lkLoginKind === 'phone');
+  if(emailBtn) emailBtn.classList.toggle('active', lkLoginKind === 'email');
+}
 function toggleLKPanel(){
   const panel=document.getElementById('lk-panel');
   if(!panel) return;
+  const willOpen = !panel.classList.contains('open');
   panel.classList.toggle('open');
-  const profile = safeParseBuyerProfile();
-  if(panel.classList.contains('open') && profile){
-    const name = document.getElementById('lk-name');
-    const phone = document.getElementById('lk-phone');
-    const email = document.getElementById('lk-email');
-    if(name && !name.value) name.value = profile.name || '';
-    if(phone && !phone.value) phone.value = profile.phone || '';
-    if(email && !email.value) email.value = profile.email || '';
+  if(willOpen){
+    setLKTab('login');
+    setLKLoginKind('phone');
+    const profile = safeParseBuyerProfile();
+    if(profile){
+      const regName = document.getElementById('lk-reg-name');
+      const regPhone = document.getElementById('lk-reg-phone');
+      const regEmail = document.getElementById('lk-reg-email');
+      const loginPhone = document.getElementById('lk-login-phone');
+      const loginEmail = document.getElementById('lk-login-email');
+      if(regName && !regName.value) regName.value = profile.name || '';
+      if(regPhone && !regPhone.value) regPhone.value = String(profile.phone || '').replace(/\D/g,'');
+      if(regEmail && !regEmail.value) regEmail.value = profile.email || '';
+      if(loginPhone && !loginPhone.value) loginPhone.value = String(profile.phone || '').replace(/\D/g,'');
+      if(loginEmail && !loginEmail.value) loginEmail.value = profile.email || '';
+    }
   }
 }
 const BUYER_SESSION_KEY='cfBuyerProfile';
@@ -240,12 +278,17 @@ function buyerRenderAccount(profile, rows){
 }
 async function buyerRefreshAccount(){
   const profile = safeParseBuyerProfile();
-  if(!profile || !profile.phone){
+  const phone = normalizeBuyerPhone(profile?.phone || '');
+  const email = String(profile?.email || '').trim();
+  if(!profile || (!phone && !email)){
     buyerRenderAccount(null, []);
     return;
   }
   try{
-    const data = await fetch(`${window.API_BASE}/lk/orders?phone=${encodeURIComponent(profile.phone)}&limit=50`).then(r=>{
+    const params = new URLSearchParams({limit:'50'});
+    if(phone) params.set('phone', phone);
+    if(email) params.set('email', email);
+    const data = await fetch(`${window.API_BASE}/lk/orders?${params.toString()}`).then(r=>{
       if(!r.ok) throw new Error(`API ${r.status}`);
       return r.json();
     });
@@ -301,28 +344,31 @@ async function guestTrackOrder(){
   }
 }
 async function buyerLoginOrRegister(mode='login'){
-  const name = document.getElementById('lk-name')?.value.trim() || '';
-  const phoneInput = document.getElementById('lk-phone')?.value.trim() || '';
-  const email = document.getElementById('lk-email')?.value.trim() || '';
-  const pass = document.getElementById('lk-pass')?.value.trim().toLowerCase() || '';
-  if(pass==='admin'){
-    toast('Доступ администратора подтверждён.');
-    document.getElementById('lk-pass').value='';
-    toggleLKPanel();
-    showPage('admin');
-    return;
-  }
-  const phone = normalizeBuyerPhone(phoneInput);
-  if(!phone){
-    toast('Введите телефон', false);
-    return;
-  }
-  if(mode==='register' && !name){
+  const isRegister = mode === 'register' || lkTab === 'register';
+  const name = document.getElementById('lk-reg-name')?.value.trim() || '';
+  const regPhoneDigits = document.getElementById('lk-reg-phone')?.value.trim() || '';
+  const regEmail = document.getElementById('lk-reg-email')?.value.trim() || '';
+  const loginPhoneDigits = document.getElementById('lk-login-phone')?.value.trim() || '';
+  const loginEmail = document.getElementById('lk-login-email')?.value.trim() || '';
+  const identity = lkLoginKind === 'email'
+    ? loginEmail
+    : normalizeBuyerPhone(loginPhoneDigits);
+  if(isRegister && !name){
     toast('Введите имя для регистрации', false);
     return;
   }
-  const payload = {name: name || 'Покупатель', phone, email};
-  const endpoint = mode==='register' ? '/lk/register' : '/lk/login';
+  if(isRegister && (!regPhoneDigits || !regEmail)){
+    toast('Введите email и телефон для регистрации', false);
+    return;
+  }
+  if(!isRegister && !identity){
+    toast(lkLoginKind === 'email' ? 'Введите email' : 'Введите телефон', false);
+    return;
+  }
+  const payload = isRegister
+    ? {name, phone: normalizeBuyerPhone(regPhoneDigits), email: regEmail}
+    : {identity};
+  const endpoint = isRegister ? '/lk/register' : '/lk/login';
   try{
     const resp = await fetch(`${window.API_BASE}${endpoint}`, {
       method:'POST',
@@ -339,7 +385,6 @@ async function buyerLoginOrRegister(mode='login'){
     const data = await resp.json();
     const isAdmin = Boolean(data?.user?.is_admin) || String(data?.user?.role || '').toLowerCase() === 'admin';
     if (isAdmin) {
-      document.getElementById('lk-pass').value='';
       toggleLKPanel();
       showPage('admin');
       toast('Доступ администратора подтверждён.');
@@ -347,15 +392,15 @@ async function buyerLoginOrRegister(mode='login'){
     }
     const user = saveBuyerProfile({
       name: data.user?.name || name || 'Покупатель',
-      phone: data.user?.phone || phone,
-      email: data.user?.email || email,
+      phone: data.user?.phone || normalizeBuyerPhone(regPhoneDigits || loginPhoneDigits),
+      email: data.user?.email || regEmail || loginEmail,
       created_at: data.user?.created_at || '',
       orders_count: data.orders_count || 0,
     });
     toggleLKPanel();
     showPage('account');
     await buyerRefreshAccount();
-    toast(mode==='register' ? 'Кабинет создан' : 'Вход выполнен');
+    toast(isRegister ? 'Кабинет создан' : 'Вход выполнен');
     return user;
   }catch(err){
     toast(`Не удалось войти в кабинет: ${err.message}`, false);
@@ -365,6 +410,7 @@ function submitLK(){
   buyerLoginOrRegister('login');
 }
 function registerLK(){
+  setLKTab('register');
   buyerLoginOrRegister('register');
 }
 document.addEventListener('click',e=>{

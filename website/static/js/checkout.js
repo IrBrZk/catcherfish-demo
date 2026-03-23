@@ -44,7 +44,7 @@ async function submitGuestOrder(event) {
 
   try {
     const apiBase = (window.API_BASE || '').replace(/\/$/, '');
-    const endpoint = apiBase ? `${apiBase}/orders` : '/orders';
+    const endpoint = apiBase ? `${apiBase}/api/guest-order` : '/api/guest-order';
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

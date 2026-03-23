@@ -75,16 +75,41 @@
 </div>
 
 <div class="lk-panel" id="lk-panel">
-  <h3>Личный кабинет</h3>
-  <input id="lk-name" placeholder="Имя покупателя">
-  <input id="lk-phone" placeholder="Телефон">
-  <input id="lk-email" placeholder="Email (необязательно)">
-  <input id="lk-pass" type="password" placeholder="Код администратора">
-  <div class="lk-actions">
-    <button class="adm-btn sm" onclick="submitLK()">Войти</button>
-    <button class="adm-btn sm or" onclick="registerLK()">Регистрация</button>
+  <div class="lk-head">
+    <h3>Личный кабинет</h3>
+    <button type="button" class="lk-close" onclick="toggleLKPanel()">×</button>
   </div>
-  <p class="lk-hint">Покупатель: имя и телефон. Админка: введите «admin» в поле кода.</p>
+  <div class="lk-tabs">
+    <button type="button" class="lk-tab-btn active" id="lk-tab-login-btn" onclick="setLKTab('login')">Вход</button>
+    <button type="button" class="lk-tab-btn" id="lk-tab-register-btn" onclick="setLKTab('register')">Регистрация</button>
+  </div>
+
+  <div class="lk-pane" id="lk-login-pane">
+    <div class="lk-subtabs">
+      <button type="button" class="lk-kind-btn active" id="lk-kind-phone-btn" onclick="setLKLoginKind('phone')">Телефон</button>
+      <button type="button" class="lk-kind-btn" id="lk-kind-email-btn" onclick="setLKLoginKind('email')">Email</button>
+    </div>
+    <div class="lk-field" id="lk-login-phone-wrap">
+      <span class="phone-prefix">+7</span>
+      <input id="lk-login-phone" inputmode="numeric" placeholder="900 123-45-67" oninput="sanitizePhoneField(this)">
+    </div>
+    <input id="lk-login-email" type="email" class="hidden" placeholder="Email">
+    <button class="adm-btn sm" style="width:100%;justify-content:center" onclick="submitLK()">Войти</button>
+    <p class="lk-hint">Администратор входит по своему телефону или email. Если это админ, система откроет админ-панель автоматически.</p>
+  </div>
+
+  <div class="lk-pane hidden" id="lk-register-pane">
+    <input id="lk-reg-name" placeholder="Имя покупателя">
+    <input id="lk-reg-email" type="email" placeholder="Email">
+    <div class="lk-field">
+      <span class="phone-prefix">+7</span>
+      <input id="lk-reg-phone" inputmode="numeric" placeholder="900 123-45-67" oninput="sanitizePhoneField(this)">
+    </div>
+    <div class="lk-actions">
+      <button class="adm-btn sm or" style="width:100%;justify-content:center" onclick="registerLK()">Создать кабинет</button>
+    </div>
+    <p class="lk-hint">Регистрация сохраняет историю заказов и позволит входить по телефону или email.</p>
+  </div>
 </div>
 
 <!-- == PAGE: ACCOUNT == -->
