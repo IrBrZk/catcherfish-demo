@@ -300,10 +300,15 @@ async def upsert_user(
     email: str = "",
 ) -> asyncpg.Record:
     phone = normalize_phone(phone)
-    email = str(email or "").strip()
+    email = str(email or "").strip().lower()
     name = str(name or "").strip()
-    user = await get_user_by_phone(conn, phone)
+    user = await get_user_by_phone(conn, phone) if phone else None
+    if not user and email:
+        user = await get_user_by_email(conn, email)
     if user:
+        duplicate = await get_user_by_email(conn, email) if email else None
+        if duplicate and duplicate["id"] != user["id"]:
+            email = str(user.get("email") or "").strip().lower()
         await conn.execute(
             """
             UPDATE users
@@ -324,16 +329,41 @@ async def upsert_user(
             user["id"],
         )
 
-    user_id = await conn.fetchval(
-        """
-        INSERT INTO users (phone, name, email, role, is_admin, created_at)
-        VALUES ($1, $2, $3, 'customer', FALSE, NOW())
-        RETURNING id
-        """,
-        phone,
-        name,
-        email or None,
-    )
+    try:
+        user_id = await conn.fetchval(
+            """
+            INSERT INTO users (phone, name, email, role, is_admin, created_at)
+            VALUES ($1, $2, $3, 'customer', FALSE, NOW())
+            RETURNING id
+            """,
+            phone,
+            name,
+            email or None,
+        )
+    except asyncpg.UniqueViolationError:
+        fallback = await get_user_by_email(conn, email) if email else None
+        if not fallback and phone:
+            fallback = await get_user_by_phone(conn, phone)
+        if not fallback:
+            raise
+        fallback_email = str(fallback.get("email") or "").strip().lower()
+        email_to_set = email
+        if email_to_set and fallback_email and email_to_set != fallback_email:
+            email_to_set = fallback_email
+        await conn.execute(
+            """
+            UPDATE users
+            SET name = COALESCE(NULLIF($1, ''), name),
+                phone = COALESCE(NULLIF($2, ''), phone),
+                email = COALESCE(NULLIF($3, ''), email)
+            WHERE id = $4
+            """,
+            name,
+            phone,
+            email_to_set,
+            fallback["id"],
+        )
+        user_id = fallback["id"]
     return await conn.fetchrow(
         """
         SELECT id, telegram_id, email, phone, name, role, is_admin, created_at
