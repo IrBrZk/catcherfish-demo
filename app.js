@@ -138,7 +138,6 @@ function showPage(name){
 function setMobActive(el){document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');}
 
 let lkTab='login';
-let lkLoginKind='phone';
 function sanitizePhoneField(input){
   if(!input) return;
   const digits=String(input.value || '').replace(/\D/g,'').slice(0, 11);
@@ -155,17 +154,6 @@ function setLKTab(tab){
   if(loginBtn) loginBtn.classList.toggle('active', lkTab === 'login');
   if(registerBtn) registerBtn.classList.toggle('active', lkTab === 'register');
 }
-function setLKLoginKind(kind){
-  lkLoginKind = kind === 'email' ? 'email' : 'phone';
-  const phoneWrap = document.getElementById('lk-login-phone-wrap');
-  const emailInput = document.getElementById('lk-login-email');
-  const phoneBtn = document.getElementById('lk-kind-phone-btn');
-  const emailBtn = document.getElementById('lk-kind-email-btn');
-  if(phoneWrap) phoneWrap.classList.toggle('hidden', lkLoginKind !== 'phone');
-  if(emailInput) emailInput.classList.toggle('hidden', lkLoginKind !== 'email');
-  if(phoneBtn) phoneBtn.classList.toggle('active', lkLoginKind === 'phone');
-  if(emailBtn) emailBtn.classList.toggle('active', lkLoginKind === 'email');
-}
 function toggleLKPanel(){
   const panel=document.getElementById('lk-panel');
   if(!panel) return;
@@ -173,19 +161,16 @@ function toggleLKPanel(){
   panel.classList.toggle('open');
   if(willOpen){
     setLKTab('login');
-    setLKLoginKind('phone');
     const profile = safeParseBuyerProfile();
     if(profile){
       const regName = document.getElementById('lk-reg-name');
       const regPhone = document.getElementById('lk-reg-phone');
       const regEmail = document.getElementById('lk-reg-email');
-      const loginPhone = document.getElementById('lk-login-phone');
-      const loginEmail = document.getElementById('lk-login-email');
+      const loginIdentity = document.getElementById('lk-login-identity');
       if(regName && !regName.value) regName.value = profile.name || '';
       if(regPhone && !regPhone.value) regPhone.value = String(profile.phone || '').replace(/\D/g,'');
       if(regEmail && !regEmail.value) regEmail.value = profile.email || '';
-      if(loginPhone && !loginPhone.value) loginPhone.value = String(profile.phone || '').replace(/\D/g,'');
-      if(loginEmail && !loginEmail.value) loginEmail.value = profile.email || '';
+      if(loginIdentity && !loginIdentity.value) loginIdentity.value = profile.email || profile.phone || '';
     }
   }
 }
@@ -278,7 +263,7 @@ function buyerRenderAccount(profile, rows){
   document.getElementById('lk-delivery-count').textContent = String(deliveryCount);
   summary.innerHTML = safeProfile
     ? `<strong>${safeProfile.name || 'Покупатель'}</strong><br>${buyerPhoneLabel(safeProfile.phone)}<br>${safeProfile.email ? escHtml(safeProfile.email) + '<br>' : ''}Заказов: ${safeRows.length}`
-    : 'Войдите по телефону, чтобы увидеть историю заказов и статус доставки.';
+    : 'Войдите по телефону, email или логину admin с паролем, чтобы увидеть историю заказов и статус доставки.';
   if(!safeRows.length){
     ordersBody.innerHTML = '<tr><td colspan="6" style="padding:28px;color:var(--muted);text-align:center">Заказов пока нет</td></tr>';
     return;
@@ -367,26 +352,28 @@ async function buyerLoginOrRegister(mode='login'){
   const name = document.getElementById('lk-reg-name')?.value.trim() || '';
   const regPhoneDigits = document.getElementById('lk-reg-phone')?.value.trim() || '';
   const regEmail = document.getElementById('lk-reg-email')?.value.trim() || '';
-  const loginPhoneDigits = document.getElementById('lk-login-phone')?.value.trim() || '';
-  const loginEmail = document.getElementById('lk-login-email')?.value.trim() || '';
-  const identity = lkLoginKind === 'email'
-    ? loginEmail
-    : normalizeBuyerPhone(loginPhoneDigits);
+  const regPassword = document.getElementById('lk-reg-password')?.value || '';
+  const loginIdentity = document.getElementById('lk-login-identity')?.value.trim() || '';
+  const loginPassword = document.getElementById('lk-login-password')?.value || '';
   if(isRegister && !name){
     toast('Введите имя для регистрации', false);
     return;
   }
-  if(isRegister && (!regPhoneDigits || !regEmail)){
-    toast('Введите email и телефон для регистрации', false);
+  if(isRegister && (!regPhoneDigits || !regEmail || !regPassword)){
+    toast('Введите email, телефон и пароль для регистрации', false);
     return;
   }
-  if(!isRegister && !identity){
-    toast(lkLoginKind === 'email' ? 'Введите email' : 'Введите телефон', false);
+  if(isRegister && regPassword.length < 4){
+    toast('Пароль должен быть не короче 4 символов', false);
+    return;
+  }
+  if(!isRegister && (!loginIdentity || !loginPassword)){
+    toast('Введите логин и пароль', false);
     return;
   }
   const payload = isRegister
-    ? {name, phone: normalizeBuyerPhone(regPhoneDigits), email: regEmail}
-    : {identity};
+    ? {name, phone: normalizeBuyerPhone(regPhoneDigits), email: regEmail, password: regPassword}
+    : {identity: loginIdentity, password: loginPassword};
   const endpoint = isRegister ? '/lk/register' : '/lk/login';
   try{
     const resp = await fetch(`${window.API_BASE}${endpoint}`, {
@@ -399,6 +386,10 @@ async function buyerLoginOrRegister(mode='login'){
         toast('Пользователь не найден. Зарегистрируйтесь.', false);
         return;
       }
+      if(mode==='login' && resp.status === 401){
+        toast('Неверный пароль', false);
+        return;
+      }
       throw new Error(`API ${resp.status}`);
     }
     const data = await resp.json();
@@ -406,8 +397,8 @@ async function buyerLoginOrRegister(mode='login'){
     if (route !== 'admin') {
       const user = saveBuyerProfile({
         name: data.user?.name || name || 'Покупатель',
-        phone: data.user?.phone || normalizeBuyerPhone(regPhoneDigits || loginPhoneDigits),
-        email: data.user?.email || regEmail || loginEmail,
+        phone: data.user?.phone || normalizeBuyerPhone(regPhoneDigits),
+        email: data.user?.email || regEmail || loginIdentity,
         created_at: data.user?.created_at || '',
         orders_count: data.orders_count || 0,
       });

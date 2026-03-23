@@ -85,17 +85,10 @@
   </div>
 
   <div class="lk-pane" id="lk-login-pane">
-    <div class="lk-subtabs">
-      <button type="button" class="lk-kind-btn active" id="lk-kind-phone-btn" onclick="setLKLoginKind('phone')">Телефон</button>
-      <button type="button" class="lk-kind-btn" id="lk-kind-email-btn" onclick="setLKLoginKind('email')">Email</button>
-    </div>
-    <div class="lk-field" id="lk-login-phone-wrap">
-      <span class="phone-prefix">+7</span>
-      <input id="lk-login-phone" inputmode="numeric" placeholder="900 123-45-67" oninput="sanitizePhoneField(this)">
-    </div>
-    <input id="lk-login-email" type="email" class="hidden" placeholder="Email">
+    <input id="lk-login-identity" placeholder="Телефон, email или admin">
+    <input id="lk-login-password" type="password" placeholder="Пароль">
     <button class="adm-btn sm" style="width:100%;justify-content:center" onclick="submitLK()">Войти</button>
-    <p class="lk-hint">Администратор входит по своему телефону или email. Если это админ, система откроет админ-панель автоматически.</p>
+    <p class="lk-hint">Вход по телефону или email с паролем. Для админа логин <strong>admin</strong> и его пароль.</p>
   </div>
 
   <div class="lk-pane hidden" id="lk-register-pane">
@@ -105,10 +98,11 @@
       <span class="phone-prefix">+7</span>
       <input id="lk-reg-phone" inputmode="numeric" placeholder="900 123-45-67" oninput="sanitizePhoneField(this)">
     </div>
+    <input id="lk-reg-password" type="password" placeholder="Пароль">
     <div class="lk-actions">
       <button class="adm-btn sm or" style="width:100%;justify-content:center" onclick="registerLK()">Создать кабинет</button>
     </div>
-    <p class="lk-hint">Регистрация сохраняет историю заказов и позволит входить по телефону или email.</p>
+    <p class="lk-hint">Регистрация сохраняет историю заказов и позволит входить по телефону или email с паролем.</p>
   </div>
 </div>
 
@@ -119,7 +113,7 @@
     <aside>
       <div class="sb-box">
         <div class="sb-t">Профиль</div>
-        <div class="info-sb" id="lk-profile-summary">Войдите по телефону, чтобы увидеть историю заказов и статус доставки.</div>
+        <div class="info-sb" id="lk-profile-summary">Войдите по телефону, email или логину admin с паролем, чтобы увидеть историю заказов и статус доставки.</div>
       </div>
       <div class="sb-box">
         <div class="sb-t">Быстрый доступ</div>

@@ -5,9 +5,11 @@ FastAPI REST API для catcherfish_db
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+import secrets
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -57,6 +59,12 @@ def normalize(value: Any) -> Any:
 
 def row_to_dict(row: asyncpg.Record) -> Dict[str, Any]:
     return normalize(dict(row))
+
+
+def public_user(user: Any) -> Dict[str, Any]:
+    data = normalize(dict(user)) if user is not None else {}
+    data.pop("password_hash", None)
+    return data
 
 
 def infer_category(product: Dict[str, Any]) -> str:
@@ -261,12 +269,37 @@ def format_phone(phone: Any) -> str:
     return str(phone or "")
 
 
+def hash_password(password: str) -> str:
+    password = str(password or "")
+    if not password:
+        return ""
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), 390000).hex()
+    return f"pbkdf2_sha256$390000${salt}${digest}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    password = str(password or "")
+    stored_hash = str(stored_hash or "")
+    if not password or not stored_hash:
+        return False
+    try:
+        scheme, iterations_s, salt, digest = stored_hash.split("$", 3)
+        if scheme != "pbkdf2_sha256":
+            return False
+        iterations = int(iterations_s)
+        calc = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), iterations).hex()
+        return secrets.compare_digest(calc, digest)
+    except Exception:
+        return False
+
+
 async def get_user_by_phone(conn: asyncpg.Connection, phone: str) -> Optional[asyncpg.Record]:
     if not phone:
         return None
     return await conn.fetchrow(
         """
-        SELECT id, telegram_id, email, phone, name, role, is_admin, created_at
+        SELECT id, telegram_id, login_name, email, phone, name, role, is_admin, password_hash, created_at
         FROM users
         WHERE phone = $1
         ORDER BY id DESC
@@ -282,7 +315,7 @@ async def get_user_by_email(conn: asyncpg.Connection, email: str) -> Optional[as
         return None
     return await conn.fetchrow(
         """
-        SELECT id, telegram_id, email, phone, name, role, is_admin, created_at
+        SELECT id, telegram_id, login_name, email, phone, name, role, is_admin, password_hash, created_at
         FROM users
         WHERE LOWER(email) = $1
         ORDER BY id DESC
@@ -292,19 +325,41 @@ async def get_user_by_email(conn: asyncpg.Connection, email: str) -> Optional[as
     )
 
 
+async def get_user_by_login_name(conn: asyncpg.Connection, login_name: str) -> Optional[asyncpg.Record]:
+    login_name = str(login_name or "").strip().lower()
+    if not login_name:
+        return None
+    return await conn.fetchrow(
+        """
+        SELECT id, telegram_id, login_name, email, phone, name, role, is_admin, password_hash, created_at
+        FROM users
+        WHERE LOWER(login_name) = $1
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        login_name,
+    )
+
+
 async def upsert_user(
     conn: asyncpg.Connection,
     *,
     name: str,
     phone: str,
     email: str = "",
+    password: str = "",
+    login_name: str = "",
 ) -> asyncpg.Record:
     phone = normalize_phone(phone)
     email = str(email or "").strip().lower()
     name = str(name or "").strip()
+    login_name = str(login_name or "").strip().lower()
+    password_hash = hash_password(password)
     user = await get_user_by_phone(conn, phone) if phone else None
     if not user and email:
         user = await get_user_by_email(conn, email)
+    if not user and login_name:
+        user = await get_user_by_login_name(conn, login_name)
     if user:
         duplicate = await get_user_by_email(conn, email) if email else None
         if duplicate and duplicate["id"] != user["id"]:
@@ -313,16 +368,20 @@ async def upsert_user(
             """
             UPDATE users
             SET name = COALESCE(NULLIF($1, ''), name),
-                email = COALESCE(NULLIF($2, ''), email)
-            WHERE id = $3
+                email = COALESCE(NULLIF($2, ''), email),
+                login_name = COALESCE(NULLIF($3, ''), login_name),
+                password_hash = COALESCE(NULLIF($4, ''), password_hash)
+            WHERE id = $5
             """,
             name,
             email,
+            login_name,
+            password_hash,
             user["id"],
         )
         return await conn.fetchrow(
             """
-            SELECT id, telegram_id, email, phone, name, role, is_admin, created_at
+            SELECT id, telegram_id, login_name, email, phone, name, role, is_admin, password_hash, created_at
             FROM users
             WHERE id = $1
             """,
@@ -332,18 +391,22 @@ async def upsert_user(
     try:
         user_id = await conn.fetchval(
             """
-            INSERT INTO users (phone, name, email, role, is_admin, created_at)
-            VALUES ($1, $2, $3, 'customer', FALSE, NOW())
+            INSERT INTO users (phone, name, email, login_name, password_hash, role, is_admin, created_at)
+            VALUES ($1, $2, $3, $4, $5, 'customer', FALSE, NOW())
             RETURNING id
             """,
             phone,
             name,
             email or None,
+            login_name or None,
+            password_hash or None,
         )
     except asyncpg.UniqueViolationError:
         fallback = await get_user_by_email(conn, email) if email else None
         if not fallback and phone:
             fallback = await get_user_by_phone(conn, phone)
+        if not fallback and login_name:
+            fallback = await get_user_by_login_name(conn, login_name)
         if not fallback:
             raise
         fallback_email = str(fallback.get("email") or "").strip().lower()
@@ -355,22 +418,74 @@ async def upsert_user(
             UPDATE users
             SET name = COALESCE(NULLIF($1, ''), name),
                 phone = COALESCE(NULLIF($2, ''), phone),
-                email = COALESCE(NULLIF($3, ''), email)
-            WHERE id = $4
+                email = COALESCE(NULLIF($3, ''), email),
+                login_name = COALESCE(NULLIF($4, ''), login_name),
+                password_hash = COALESCE(NULLIF($5, ''), password_hash)
+            WHERE id = $6
             """,
             name,
             phone,
             email_to_set,
+            login_name,
+            password_hash,
             fallback["id"],
         )
         user_id = fallback["id"]
     return await conn.fetchrow(
-        """
-        SELECT id, telegram_id, email, phone, name, role, is_admin, created_at
+        """ 
+        SELECT id, telegram_id, login_name, email, phone, name, role, is_admin, password_hash, created_at
         FROM users
         WHERE id = $1
         """,
         user_id,
+    )
+
+
+async def ensure_users_auth_schema(conn: asyncpg.Connection) -> None:
+    await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS login_name VARCHAR(50)")
+    await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT")
+    await conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_login_name_idx ON users(login_name)")
+
+
+async def ensure_admin_user(conn: asyncpg.Connection) -> None:
+    admin_login = env("ADMIN_LOGIN", "admin").strip().lower() or "admin"
+    admin_password = env("ADMIN_PASSWORD", "admin")
+    admin_email = env("ADMIN_EMAIL", "admin@catcherfish.ru")
+    admin_phone = normalize_phone(env("ADMIN_PHONE", ""))
+    admin_hash = hash_password(admin_password)
+    existing = await get_user_by_login_name(conn, admin_login)
+    if existing:
+        await conn.execute(
+            """
+            UPDATE users
+            SET role = 'admin',
+                is_admin = TRUE,
+                email = COALESCE(NULLIF($1, ''), email),
+                phone = COALESCE(NULLIF($2, ''), phone),
+                password_hash = COALESCE(NULLIF($3, ''), password_hash)
+            WHERE id = $4
+            """,
+            admin_email,
+            admin_phone,
+            admin_hash,
+            existing["id"],
+        )
+        return
+    await conn.execute(
+        """
+        INSERT INTO users (login_name, email, phone, name, role, is_admin, password_hash, created_at)
+        VALUES ($1, $2, $3, 'Администратор', 'admin', TRUE, $4, NOW())
+        ON CONFLICT (login_name) DO UPDATE SET
+            email = EXCLUDED.email,
+            phone = EXCLUDED.phone,
+            role = 'admin',
+            is_admin = TRUE,
+            password_hash = EXCLUDED.password_hash
+        """,
+        admin_login,
+        admin_email,
+        admin_phone or None,
+        admin_hash,
     )
 
 
@@ -475,7 +590,10 @@ def parse_bool(value: Any, default: bool = False) -> bool:
 
 @app.on_event("startup")
 async def startup() -> None:
-    await get_pool()
+    pool_ = await get_pool()
+    async with pool_.acquire() as conn:
+        await ensure_users_auth_schema(conn)
+        await ensure_admin_user(conn)
 
 
 @app.on_event("shutdown")
@@ -743,14 +861,15 @@ async def lk_register(payload: Dict[str, Any]):
     name = str(payload.get("name") or "").strip()
     phone = str(payload.get("phone") or "").strip()
     email = str(payload.get("email") or "").strip()
-    if not name or not phone or not email:
-        raise HTTPException(status_code=400, detail="name, phone and email are required")
+    password = str(payload.get("password") or "").strip()
+    if not name or not phone or not email or not password:
+        raise HTTPException(status_code=400, detail="name, phone, email and password are required")
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
-        user = await upsert_user(conn, name=name, phone=phone, email=email)
+        user = await upsert_user(conn, name=name, phone=phone, email=email, password=password)
         orders = await get_orders_for_identity(conn, phone=user["phone"], email=user["email"], limit=50)
     return {
-        "user": normalize(dict(user)),
+        "user": public_user(user),
         "phone_display": format_phone(user["phone"]),
         "orders_count": len(orders),
     }
@@ -759,18 +878,24 @@ async def lk_register(payload: Dict[str, Any]):
 @app.post("/lk/login")
 async def lk_login(payload: Dict[str, Any]):
     identity = str(payload.get("identity") or payload.get("phone") or payload.get("email") or "").strip()
+    password = str(payload.get("password") or "").strip()
     phone = normalize_phone(identity)
     email = identity.lower() if "@" in identity else ""
-    if not phone and not email:
-        raise HTTPException(status_code=400, detail="phone or email is required")
+    login_name = identity.lower() if identity.lower() == "admin" else ""
+    if not phone and not email and not login_name:
+        raise HTTPException(status_code=400, detail="phone, email or login is required")
+    if not password:
+        raise HTTPException(status_code=400, detail="password is required")
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
-        user = await get_user_by_phone(conn, phone) if phone else await get_user_by_email(conn, email)
+        user = await get_user_by_login_name(conn, login_name) if login_name else await get_user_by_phone(conn, phone) if phone else await get_user_by_email(conn, email)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+        if not verify_password(password, user.get("password_hash") or ""):
+            raise HTTPException(status_code=401, detail="Invalid password")
         orders = await get_orders_for_identity(conn, phone=user["phone"], email=user["email"], limit=50)
     return {
-        "user": normalize(dict(user)),
+        "user": public_user(user),
         "phone_display": format_phone(user["phone"]) if user.get("phone") else "",
         "orders_count": len(orders),
     }
@@ -789,7 +914,7 @@ async def lk_me(phone: Optional[str] = None, email: Optional[str] = None):
             raise HTTPException(status_code=404, detail="User not found")
         orders = await get_orders_for_identity(conn, phone=user["phone"], email=user["email"], limit=50)
     return {
-        "user": normalize(dict(user)),
+        "user": public_user(user),
         "phone_display": format_phone(user["phone"]) if user.get("phone") else "",
         "orders_count": len(orders),
     }
@@ -928,7 +1053,7 @@ async def guest_register_after_order(payload: Dict[str, Any]):
                     )
         orders = await get_orders_for_phone(conn, phone, limit=50)
     return {
-        "user": normalize(dict(user)),
+        "user": public_user(user),
         "phone_display": format_phone(phone),
         "orders_count": len(orders),
         "registered_after_order": True,
