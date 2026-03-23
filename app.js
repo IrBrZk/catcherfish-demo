@@ -116,6 +116,70 @@ async function loadCatalogFromAPI() {
   }
 }
 
+function normalizeAdminOrderFromAPI(order, idx){
+  const items = Array.isArray(order?.items) ? order.items.map(item => ({
+    name: item?.name || item?.title || 'Ð¢Ð¾Ð²Ð°Ñ€',
+    qty: Number(item?.qty || item?.quantity || 1),
+    price: Number(item?.price || 0),
+    sku: String(item?.sku || item?.product_sku || item?.id || ''),
+  })) : [];
+  const deliveryCost = Number(order?.delivery_cost || order?.delivery?.cost || 0);
+  const total = Number(order?.total || order?.total_amount || order?.amount || 0);
+  return {
+    id: String(order?.id || order?.order_id || idx + 1),
+    name: String(order?.customer_name || order?.name || 'ÐšÐ»Ð¸ÐµÐ½Ñ‚'),
+    phone: String(order?.customer_phone || order?.phone || ''),
+    items,
+    sub: Math.max(total - deliveryCost, 0),
+    del: deliveryCost,
+    total,
+    pay: String(order?.payment_method || order?.pay || 'ÐÐµÑ‚'),
+    status: String(order?.status || 'new').toLowerCase(),
+    date: order?.created_at || order?.date || new Date().toISOString(),
+    src: String(order?.marketplace || 'website'),
+  };
+}
+
+function buildClientsFromOrders(sourceOrders){
+  const map = new Map();
+  for (const order of sourceOrders || []) {
+    const phone = String(order?.phone || '').trim();
+    const name = String(order?.name || 'ÐšÐ»Ð¸ÐµÐ½Ñ‚').trim();
+    const key = phone || name.toLowerCase() || String(order?.id || '');
+    if (!key) continue;
+    const total = Number(order?.total || 0);
+    const isWhl = total >= 10000 || /ООО|ИП|opt|whl/i.test(`${name} ${order?.comment || ''}`);
+    const prev = map.get(key) || {
+      name,
+      phone,
+      orders: 0,
+      total: 0,
+      last: '',
+      type: isWhl ? 'whl' : 'ret',
+    };
+    prev.orders += 1;
+    prev.total += total;
+    prev.last = String(order?.date || order?.created_at || prev.last || '');
+    prev.type = prev.type === 'whl' || isWhl ? 'whl' : 'ret';
+    map.set(key, prev);
+  }
+  return Array.from(map.values());
+}
+
+async function loadAdminDataFromAPI(){
+  try {
+    const resp = await fetch(`${window.API_BASE}/orders?limit=200`);
+    if (!resp.ok) throw new Error(`API ${resp.status}`);
+    const data = await resp.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) return;
+    orders = items.map(normalizeAdminOrderFromAPI);
+    clients = buildClientsFromOrders(orders);
+  } catch (e) {
+    console.warn('API заказов недоступен, используем локальные данные');
+  }
+}
+
 const catalogSections=[
   {key:'construction',title:'ðŸ— Ð¡Ñ‚Ñ€Ð¾Ð¹ÐºÐ°',cats:['construction']},
   {key:'fish',title:'ðŸŽ£ Ð Ñ‹Ð±Ð°Ð»ÐºÐ°',cats:['fishing','lure']},
@@ -648,6 +712,7 @@ async function placeOrder(){
   syncLog.unshift({time:order.date,event:`Ð—Ð°ÐºÐ°Ð· ${num} ÑÐ¾Ð·Ð´Ð°Ð½ Ð¸ Ð¿ÐµÑ€ÐµÐ´Ð°Ð½ Ð² ÑÐ¸ÑÑ‚ÐµÐ¼Ñƒ`,status:'ok'});
   cart=[];updCart();renderCatalog();
   loadCatalogFromAPI().catch(()=>{});
+  loadAdminDataFromAPI().catch(()=>{});
   buyerRefreshAccount().catch(()=>{});
   closeMod();
   document.getElementById('snum').textContent='#'+num;
@@ -679,10 +744,13 @@ function toast(msg,ok=true){
 // ADMIN PANEL RENDERER
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 let admCur='dashboard';
-function admTab(tab,el){
+async function admTab(tab,el){
   admCur=tab;
   document.querySelectorAll('.adm-nav a').forEach(a=>a.classList.remove('act'));
   if(el) el.classList.add('act');
+  if(['dashboard','orders','clients','analytics'].includes(tab)){
+    await loadAdminDataFromAPI().catch(()=>{});
+  }
   renderAdmin(tab);
 }
 function renderAdmin(tab){
@@ -932,4 +1000,5 @@ function syncStockNow(){
 renderCatalog();
 updCart();
 loadCatalogFromAPI();
+loadAdminDataFromAPI().catch(()=>{});
 
