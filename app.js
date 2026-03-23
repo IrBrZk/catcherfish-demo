@@ -228,6 +228,25 @@ function buyerPhoneLabel(phone){
   if(digits.length===11 && digits.startsWith('7')) return `+7 (${digits.slice(1,4)}) ${digits.slice(4,7)}-${digits.slice(7,9)}-${digits.slice(9,11)}`;
   return String(phone||'');
 }
+function openAfterAuth(user, fallback = 'account'){
+  const role = String(user?.role || '').toLowerCase();
+  const isAdmin = Boolean(user?.is_admin) || role === 'admin';
+  const isClient = !isAdmin && (role === 'customer' || role === 'client' || role === 'buyer' || role === '');
+  if (isAdmin) {
+    toggleLKPanel();
+    showPage('admin');
+    toast('Доступ администратора подтверждён.');
+    return 'admin';
+  }
+  if (isClient) {
+    toggleLKPanel();
+    showPage('account');
+    return 'account';
+  }
+  toggleLKPanel();
+  showPage(fallback);
+  return fallback;
+}
 function buyerStatusLabel(status){
   const map={new:'Принят',proc:'Собирается',send:'Отправлен',done:'Доставлен',cancelled:'Отменён'};
   return map[String(status||'new').toLowerCase()] || String(status||'new');
@@ -383,25 +402,20 @@ async function buyerLoginOrRegister(mode='login'){
       throw new Error(`API ${resp.status}`);
     }
     const data = await resp.json();
-    const isAdmin = Boolean(data?.user?.is_admin) || String(data?.user?.role || '').toLowerCase() === 'admin';
-    if (isAdmin) {
-      toggleLKPanel();
-      showPage('admin');
-      toast('Доступ администратора подтверждён.');
-      return data.user;
+    const route = openAfterAuth(data.user, 'account');
+    if (route !== 'admin') {
+      const user = saveBuyerProfile({
+        name: data.user?.name || name || 'Покупатель',
+        phone: data.user?.phone || normalizeBuyerPhone(regPhoneDigits || loginPhoneDigits),
+        email: data.user?.email || regEmail || loginEmail,
+        created_at: data.user?.created_at || '',
+        orders_count: data.orders_count || 0,
+      });
+      await buyerRefreshAccount();
+      toast(isRegister ? 'Кабинет создан' : 'Вход выполнен');
+      return user;
     }
-    const user = saveBuyerProfile({
-      name: data.user?.name || name || 'Покупатель',
-      phone: data.user?.phone || normalizeBuyerPhone(regPhoneDigits || loginPhoneDigits),
-      email: data.user?.email || regEmail || loginEmail,
-      created_at: data.user?.created_at || '',
-      orders_count: data.orders_count || 0,
-    });
-    toggleLKPanel();
-    showPage('account');
-    await buyerRefreshAccount();
-    toast(isRegister ? 'Кабинет создан' : 'Вход выполнен');
-    return user;
+    return data.user;
   }catch(err){
     toast(`Не удалось войти в кабинет: ${err.message}`, false);
   }
