@@ -103,6 +103,15 @@
           <button class="adm-btn sm or" style="width:100%;justify-content:center" onclick="toggleLKPanel()">Сменить профиль</button>
         </div>
       </div>
+      <div class="sb-box">
+        <div class="sb-t">Гостевой заказ</div>
+        <div class="info-sb">
+          <input id="track-order-id" placeholder="Номер заказа" style="width:100%;margin-bottom:8px">
+          <input id="track-order-phone" placeholder="Телефон" style="width:100%;margin-bottom:8px">
+          <input id="track-order-email" placeholder="Email" style="width:100%;margin-bottom:8px">
+          <button class="adm-btn sm" style="width:100%;justify-content:center" onclick="guestTrackOrder()">Отследить заказ</button>
+        </div>
+      </div>
     </aside>
     <div class="info-c">
       <h1>👤 Личный кабинет</h1>
@@ -338,6 +347,9 @@
         <label class="dopt" onclick="selD(this,0)"><input type="radio" name="dl">🚛 Деловые Линии <span class="dp">По запросу</span></label>
       </div>
       <div class="fg" style="margin-top:9px"><label>Адрес</label><input id="fadr" placeholder="Город, улица, дом"></div>
+      <div class="fg" style="margin-top:9px">
+        <label><input id="freg" type="checkbox" style="margin-right:6px">Создать кабинет после заказа</label>
+      </div>
       <div class="fsec">Оплата</div>
       <div class="fg"><select id="fpay"><option>💳 Картой онлайн (ЮKassa)</option><option>📱 Яндекс Пэй / SberPay</option><option>💵 Наличными при получении</option><option>🏦 По счёту (юрлицам / ИП)</option><option>🔁 Постоплата</option></select></div>
       <div class="fg"><label>Комментарий</label><textarea id="fcmt" rows="2" placeholder="Уточнения..."></textarea></div>
@@ -353,10 +365,11 @@
   <div class="succ-box">
     <div class="s-ico">✅</div>
     <h2>Заказ принят!</h2>
-    <p>Свяжемся в течение 30 минут. Трек-номер СДЭК придёт на email.</p>
+    <p id="succ-hint">Свяжемся в течение 30 минут. Трек-номер СДЭК придёт на email.</p>
     <div class="s-num" id="snum"></div>
     <div class="s-btns">
       <button onclick="document.getElementById('succ-ov').classList.remove('open');showPage('catalog')">В каталог</button>
+      <button class="sec" onclick="document.getElementById('succ-ov').classList.remove('open');showPage('account')">Личный кабинет</button>
       <button class="sec" onclick="document.getElementById('succ-ov').classList.remove('open');showPage('admin')">Смотреть в админке</button>
     </div>
   </div>
@@ -364,8 +377,8 @@
 
  
 <script>window.API_BASE = 'https://chef-latest-lending-stolen.trycloudflare.com';</script>
-<script src="app.js?v=20260323a"></script>
-<script src="admin_api.js?v=20260323a"></script>
+<script src="app.js?v=20260323b"></script>
+<script src="admin_api.js?v=20260323b"></script>
 <style id="kleov-widget-style">
   #kleov-trigger {
     position:fixed;

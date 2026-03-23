@@ -31,9 +31,11 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,
     order_id VARCHAR(50) UNIQUE NOT NULL,
+    user_id INTEGER,
     marketplace VARCHAR(20) NOT NULL,
     status VARCHAR(30) DEFAULT 'new',
     total_amount NUMERIC(10,2),
+    delivery_cost NUMERIC(10,2) DEFAULT 0,
     customer_name VARCHAR(100),
     customer_phone VARCHAR(20),
     customer_email VARCHAR(100),
@@ -43,9 +45,22 @@ CREATE TABLE IF NOT EXISTS orders (
     payment_status VARCHAR(20) DEFAULT 'pending',
     items JSONB NOT NULL,
     tracking_number VARCHAR(100),
+    comment TEXT,
+    is_guest BOOLEAN DEFAULT TRUE,
+    registered_after_order BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS guest_sessions (
+    id SERIAL PRIMARY KEY,
+    session_token VARCHAR(100) UNIQUE NOT NULL,
+    customer_phone VARCHAR(20),
+    customer_email VARCHAR(100),
+    cart_items JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '24 hours')
 );
 
 CREATE TABLE IF NOT EXISTS sync_queue (
@@ -132,6 +147,19 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'orders_user_id_fkey'
+    ) THEN
+        ALTER TABLE orders
+            ADD CONSTRAINT orders_user_id_fkey
+            FOREIGN KEY (user_id) REFERENCES users(id);
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS marketplace_settings (
     id SERIAL PRIMARY KEY,
     name VARCHAR(30) NOT NULL,
@@ -146,6 +174,7 @@ CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku);
 CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_marketplace ON orders(marketplace);
+CREATE INDEX IF NOT EXISTS idx_orders_guest ON orders(customer_phone, customer_email);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status);
 CREATE INDEX IF NOT EXISTS idx_stock_history_sku ON stock_history(product_sku);
 

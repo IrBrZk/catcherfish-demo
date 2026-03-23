@@ -5,6 +5,7 @@ FastAPI REST API для catcherfish_db
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import uuid
@@ -150,6 +151,7 @@ def order_select_exprs(order_cols: set[str]) -> Dict[str, str]:
     order_id_col = "order_id" if "order_id" in order_cols else "id" if "id" in order_cols else None
     status_col = "status" if "status" in order_cols else None
     total_col = coalesce_expr(order_cols, ["total_amount", "total", "amount"], "0::numeric")
+    user_id_col = "user_id" if "user_id" in order_cols else None
     name_col = "customer_name" if "customer_name" in order_cols else "name" if "name" in order_cols else None
     phone_col = "customer_phone" if "customer_phone" in order_cols else "phone" if "phone" in order_cols else None
     email_col = "customer_email" if "customer_email" in order_cols else "email" if "email" in order_cols else None
@@ -159,10 +161,17 @@ def order_select_exprs(order_cols: set[str]) -> Dict[str, str]:
     payment_method_col = "payment_method" if "payment_method" in order_cols else None
     payment_status_col = "payment_status" if "payment_status" in order_cols else None
     tracking_col = "tracking_number" if "tracking_number" in order_cols else None
+    delivery_cost_col = "delivery_cost" if "delivery_cost" in order_cols else None
+    delivery_method_col = "delivery_method" if "delivery_method" in order_cols else None
+    delivery_address_col = "delivery_address" if "delivery_address" in order_cols else None
+    comment_col = "comment" if "comment" in order_cols else None
+    is_guest_col = "is_guest" if "is_guest" in order_cols else None
+    registered_after_order_col = "registered_after_order" if "registered_after_order" in order_cols else None
     return {
         "order_id": order_id_col or "id::text",
         "status": status_col or "'new'",
         "total": total_col,
+        "user_id": user_id_col or "NULL::integer",
         "name": name_col or "NULL::text",
         "phone": phone_col or "NULL::text",
         "email": email_col or "NULL::text",
@@ -172,6 +181,12 @@ def order_select_exprs(order_cols: set[str]) -> Dict[str, str]:
         "payment_method": payment_method_col or "''",
         "payment_status": payment_status_col or "'pending'",
         "tracking_number": tracking_col or "''",
+        "delivery_cost": delivery_cost_col or "0::numeric",
+        "delivery_method": delivery_method_col or "''",
+        "delivery_address": delivery_address_col or "''",
+        "comment": comment_col or "''",
+        "is_guest": is_guest_col or "TRUE",
+        "registered_after_order": registered_after_order_col or "FALSE",
     }
 
 
@@ -343,6 +358,19 @@ async def get_orders_for_phone(conn: asyncpg.Connection, phone: str, limit: int 
         limit,
     )
     return rows
+
+
+def parse_bool(value: Any, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off"}:
+        return False
+    return default
 
 
 @app.on_event("startup")
@@ -546,6 +574,7 @@ async def get_orders(
     offset: int = Query(0, ge=0),
     status: Optional[str] = None,
     phone: Optional[str] = None,
+    order_id: Optional[str] = None,
 ):
     pool_ = await get_pool()
     async with pool_.acquire() as conn:
@@ -559,6 +588,8 @@ async def get_orders(
                 {exprs['order_id']} AS order_id,
                 {exprs['status']} AS status,
                 {exprs['total']} AS total,
+                {exprs['user_id']} AS user_id,
+                {exprs['delivery_cost']} AS delivery_cost,
                 {exprs['name']} AS customer_name,
                 {exprs['phone']} AS customer_phone,
                 {exprs['email']} AS customer_email,
@@ -567,7 +598,12 @@ async def get_orders(
                 {exprs['marketplace']} AS marketplace,
                 {exprs['payment_method']} AS payment_method,
                 {exprs['payment_status']} AS payment_status,
-                {exprs['tracking_number']} AS tracking_number
+                {exprs['tracking_number']} AS tracking_number,
+                {exprs['delivery_method']} AS delivery_method,
+                {exprs['delivery_address']} AS delivery_address,
+                {exprs['comment']} AS comment,
+                {exprs['is_guest']} AS is_guest,
+                {exprs['registered_after_order']} AS registered_after_order
             FROM orders
             ORDER BY {exprs['created_at']} DESC, id DESC
             """
@@ -581,6 +617,12 @@ async def get_orders(
         item["phone"] = item.get("customer_phone") or item.get("phone")
         item["total"] = item.get("total") or item.get("total_amount") or item.get("amount") or 0
         item["date"] = item.get("created_at") or item.get("date")
+        item["delivery_cost"] = item.get("delivery_cost") or 0
+        item["delivery_method"] = item.get("delivery_method") or ""
+        item["delivery_address"] = item.get("delivery_address") or ""
+        item["comment"] = item.get("comment") or ""
+        item["is_guest"] = item.get("is_guest", True)
+        item["registered_after_order"] = item.get("registered_after_order", False)
         items.append(item)
     if phone:
         phone_norm = normalize_phone(phone)
@@ -588,6 +630,8 @@ async def get_orders(
             item for item in items
             if normalize_phone(item.get("phone") or item.get("customer_phone")) == phone_norm
         ]
+    if order_id:
+        items = [item for item in items if str(item.get("id") or item.get("order_id") or "").lower() == str(order_id).lower()]
     if status:
         items = [item for item in items if str(item.get("status", "")).lower() == status.lower()]
     total = len(items)
@@ -663,6 +707,117 @@ async def lk_orders(phone: str = Query(..., min_length=5), limit: int = Query(50
     return {"items": items, "total": len(items), "phone": phone_norm, "phone_display": format_phone(phone_norm)}
 
 
+@app.get("/track/order")
+async def track_order(
+    order_id: str = Query(..., min_length=3),
+    phone: Optional[str] = None,
+    email: Optional[str] = None,
+):
+    phone_norm = normalize_phone(phone or "")
+    email_norm = str(email or "").strip().lower()
+    if not phone_norm and not email_norm:
+        raise HTTPException(status_code=400, detail="phone or email is required")
+    pool_ = await get_pool()
+    async with pool_.acquire() as conn:
+        if not await table_exists(conn, "orders"):
+            raise HTTPException(status_code=404, detail="Order not found")
+        order_cols = await table_columns(conn, "orders")
+        exprs = order_select_exprs(order_cols)
+        row = await conn.fetchrow(
+            f"""
+            SELECT
+                {exprs['order_id']} AS order_id,
+                {exprs['status']} AS status,
+                {exprs['total']} AS total,
+                {exprs['user_id']} AS user_id,
+                {exprs['name']} AS customer_name,
+                {exprs['phone']} AS customer_phone,
+                {exprs['email']} AS customer_email,
+                {exprs['items']} AS items,
+                {exprs['created_at']} AS created_at,
+                {exprs['marketplace']} AS marketplace,
+                {exprs['payment_method']} AS payment_method,
+                {exprs['payment_status']} AS payment_status,
+                {exprs['tracking_number']} AS tracking_number,
+                {exprs['delivery_cost']} AS delivery_cost,
+                {exprs['delivery_method']} AS delivery_method,
+                {exprs['delivery_address']} AS delivery_address,
+                {exprs['comment']} AS comment,
+                {exprs['is_guest']} AS is_guest,
+                {exprs['registered_after_order']} AS registered_after_order
+            FROM orders
+            WHERE {exprs['order_id']}::text = $1
+            LIMIT 1
+            """,
+            order_id,
+        )
+    if not row:
+        raise HTTPException(status_code=404, detail="Order not found")
+    item = row_to_dict(row)
+    row_phone = normalize_phone(item.get("customer_phone"))
+    row_email = str(item.get("customer_email") or "").strip().lower()
+    if phone_norm or email_norm:
+        matched = False
+        if phone_norm and row_phone == phone_norm:
+            matched = True
+        if email_norm and row_email == email_norm:
+            matched = True
+        if not matched:
+            raise HTTPException(status_code=404, detail="Order not found")
+    item["id"] = item.get("order_id")
+    item["name"] = item.get("customer_name")
+    item["phone"] = item.get("customer_phone")
+    item["date"] = item.get("created_at")
+    item["tracking"] = item.get("tracking_number") or ""
+    item["delivery"] = {
+        "method": item.get("delivery_method") or item.get("marketplace") or "website",
+        "cost": item.get("delivery_cost") or 0,
+        "address": item.get("delivery_address") or "",
+    }
+    return item
+
+
+@app.post("/guest/register-after-order")
+async def guest_register_after_order(payload: Dict[str, Any]):
+    order_id = str(payload.get("order_id") or "").strip()
+    name = str(payload.get("name") or "").strip()
+    phone = normalize_phone(payload.get("phone") or "")
+    email = str(payload.get("email") or "").strip()
+    if not order_id or not name or not phone:
+        raise HTTPException(status_code=400, detail="order_id, name and phone are required")
+    pool_ = await get_pool()
+    async with pool_.acquire() as conn:
+        user = await upsert_user(conn, name=name, phone=phone, email=email)
+        if await table_exists(conn, "orders"):
+            order_cols = await table_columns(conn, "orders")
+            if "user_id" in order_cols or "registered_after_order" in order_cols or "is_guest" in order_cols:
+                sets = []
+                params: List[Any] = []
+                if "user_id" in order_cols:
+                    sets.append(f"user_id = ${len(params) + 1}")
+                    params.append(user["id"])
+                if "registered_after_order" in order_cols:
+                    sets.append(f"registered_after_order = ${len(params) + 1}")
+                    params.append(True)
+                if "is_guest" in order_cols:
+                    sets.append(f"is_guest = ${len(params) + 1}")
+                    params.append(False)
+                if sets:
+                    params.append(order_id)
+                    await conn.execute(
+                        f"UPDATE orders SET {', '.join(sets)}, updated_at = NOW() WHERE order_id = ${len(params)}",
+                        *params,
+                    )
+        orders = await get_orders_for_phone(conn, phone, limit=50)
+    return {
+        "user": normalize(dict(user)),
+        "phone_display": format_phone(phone),
+        "orders_count": len(orders),
+        "registered_after_order": True,
+        "order_id": order_id,
+    }
+
+
 @app.post("/orders")
 async def create_order(payload: Dict[str, Any]):
     pool_ = await get_pool()
@@ -674,9 +829,23 @@ async def create_order(payload: Dict[str, Any]):
     customer_email = str(payload.get("customer_email") or payload.get("email") or "")
     delivery_method = str(payload.get("delivery_method") or "")
     delivery_address = str(payload.get("delivery_address") or "")
+    comment = str(payload.get("comment") or "")
     payment_method = str(payload.get("payment_method") or payload.get("pay") or "")
     payment_status = str(payload.get("payment_status") or "pending")
     tracking_number = str(payload.get("tracking_number") or "")
+    delivery_cost = float(payload.get("delivery_cost") or 0)
+    is_guest = parse_bool(payload.get("is_guest"), default=True)
+    registered_after_order = parse_bool(payload.get("registered_after_order"), default=False)
+    user_id = payload.get("user_id")
+    if user_id in {"", None}:
+        user_id = None
+    else:
+        try:
+            user_id = int(user_id)
+        except Exception:
+            user_id = None
+    if registered_after_order:
+        is_guest = False
     items = payload.get("items") or []
     normalized_items: List[Dict[str, Any]] = []
     total_amount = payload.get("total_amount", payload.get("total"))
@@ -705,17 +874,26 @@ async def create_order(payload: Dict[str, Any]):
             raise HTTPException(status_code=503, detail="orders table is not available")
         order_cols = await table_columns(conn, "orders")
         insert_columns = [col for col in (
-            "order_id", "marketplace", "status", "total_amount", "customer_name",
-            "customer_phone", "customer_email", "delivery_method", "delivery_address",
-            "payment_method", "payment_status", "items", "tracking_number", "created_at", "updated_at"
+            "order_id", "user_id", "marketplace", "status", "total_amount", "delivery_cost",
+            "customer_name", "customer_phone", "customer_email", "delivery_method", "delivery_address",
+            "payment_method", "payment_status", "items", "tracking_number", "comment",
+            "is_guest", "registered_after_order", "created_at", "updated_at"
         ) if col in order_cols]
         if "order_id" not in insert_columns or "items" not in insert_columns:
             raise HTTPException(status_code=500, detail="orders table schema is not compatible")
+        resolved_user_id = user_id
+        if registered_after_order and customer_phone and customer_name:
+            user = await upsert_user(conn, name=customer_name, phone=customer_phone, email=customer_email)
+            if user:
+                resolved_user_id = int(user["id"])
+        guest_session_token = str(payload.get("guest_session_token") or payload.get("session_token") or order_id)
         reserved_columns = {
             "order_id": order_id,
+            "user_id": resolved_user_id,
             "marketplace": marketplace,
             "status": status,
             "total_amount": total_amount,
+            "delivery_cost": delivery_cost,
             "customer_name": customer_name,
             "customer_phone": customer_phone,
             "customer_email": customer_email,
@@ -725,6 +903,9 @@ async def create_order(payload: Dict[str, Any]):
             "payment_status": payment_status,
             "items": normalize(normalized_items),
             "tracking_number": tracking_number,
+            "comment": comment,
+            "is_guest": is_guest,
+            "registered_after_order": registered_after_order,
             "created_at": created_at,
             "updated_at": created_at,
         }
@@ -737,8 +918,6 @@ async def create_order(payload: Dict[str, Any]):
             if col not in {"order_id", "created_at"}
         )
         async with conn.transaction():
-            if customer_phone and customer_name:
-                await upsert_user(conn, name=customer_name, phone=customer_phone, email=customer_email)
             await conn.execute(
                 f"""
                 INSERT INTO orders ({insert_cols_sql})
@@ -748,6 +927,37 @@ async def create_order(payload: Dict[str, Any]):
                 """,
                 *values,
             )
+
+            if await table_exists(conn, "guest_sessions"):
+                guest_cols = await table_columns(conn, "guest_sessions")
+                session_columns = [col for col in ("session_token", "customer_phone", "customer_email", "cart_items", "created_at", "expires_at") if col in guest_cols]
+                if "session_token" in session_columns:
+                    guest_payload = normalize({
+                        "order_id": order_id,
+                        "customer_name": customer_name,
+                        "customer_phone": customer_phone,
+                        "customer_email": customer_email,
+                        "items": normalized_items,
+                        "delivery_method": delivery_method,
+                        "delivery_address": delivery_address,
+                        "payment_method": payment_method,
+                        "status": status,
+                    })
+                    await conn.execute(
+                        """
+                        INSERT INTO guest_sessions (session_token, customer_phone, customer_email, cart_items, created_at, expires_at)
+                        VALUES ($1, $2, $3, $4::jsonb, NOW(), NOW() + INTERVAL '24 hours')
+                        ON CONFLICT (session_token) DO UPDATE SET
+                            customer_phone = EXCLUDED.customer_phone,
+                            customer_email = EXCLUDED.customer_email,
+                            cart_items = EXCLUDED.cart_items,
+                            expires_at = NOW() + INTERVAL '24 hours'
+                        """,
+                        guest_session_token,
+                        customer_phone,
+                        customer_email,
+                        json.dumps(guest_payload),
+                    )
 
             if await table_exists(conn, "products"):
                 product_cols = await table_columns(conn, "products")
@@ -777,6 +987,10 @@ async def create_order(payload: Dict[str, Any]):
         "items": normalized_items,
         "customer_name": customer_name,
         "customer_phone": customer_phone,
+        "customer_email": customer_email,
+        "user_id": resolved_user_id,
+        "is_guest": is_guest,
+        "registered_after_order": registered_after_order,
         "created_at": created_at.isoformat(),
     }
 

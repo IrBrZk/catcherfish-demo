@@ -16,7 +16,7 @@ const LOCAL_P=[
 let P=[...LOCAL_P];
 
 // ── STATE ─────────────────────────────────────────────────────────────────
-let cart=[],delCost=350,orderN=0,curCat='all',curSearch='',curSort='def';
+let cart=[],delCost=350,delMethod='СДЭК до двери',orderN=0,curCat='all',curSearch='',curSort='def';
 // Pre-seeded data
 let orders=[
   {id:'CF-0001',name:'Анатолий С.',phone:'+7 912 000-11-22',items:[{name:'Горелка NS 509',qty:10,price:280},{name:'Плитка М-100',qty:5,price:760}],sub:6600,del:0,total:6600,pay:'По счёту (юрлицам / ИП)',status:'proc',date:'19.03 09:14',src:'Telegram'},
@@ -131,7 +131,7 @@ function showPage(name){
   document.getElementById('page-'+name).classList.add('active');
   document.querySelectorAll('.mni').forEach(b=>b.classList.remove('act'));
   if(name==='catalog') document.getElementById('nav-cat')?.classList.add('act');
-  if(name==='account') buyerRefreshAccount().catch(()=>{});
+  if(name==='account' && safeParseBuyerProfile()) buyerRefreshAccount().catch(()=>{});
   if(name==='admin') renderAdmin('dashboard');
   window.scrollTo(0,0);
 }
@@ -152,6 +152,7 @@ function toggleLKPanel(){
   }
 }
 const BUYER_SESSION_KEY='cfBuyerProfile';
+const GUEST_SESSION_KEY='cfGuestSessionToken';
 function normalizeBuyerPhone(value){
   const digits=String(value||'').replace(/\D/g,'');
   if(!digits) return '';
@@ -162,6 +163,14 @@ function normalizeBuyerPhone(value){
 }
 function safeParseBuyerProfile(){
   try { return JSON.parse(localStorage.getItem(BUYER_SESSION_KEY)||'null'); } catch(e){ return null; }
+}
+function ensureGuestSessionToken(){
+  let token = localStorage.getItem(GUEST_SESSION_KEY);
+  if(!token){
+    token = `gst_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+    localStorage.setItem(GUEST_SESSION_KEY, token);
+  }
+  return token;
 }
 function saveBuyerProfile(profile){
   const payload = profile ? {
@@ -243,6 +252,52 @@ async function buyerRefreshAccount(){
     buyerRenderAccount(profile, data.items || []);
   }catch(err){
     toast(`Не удалось обновить ЛК: ${err.message}`, false);
+  }
+}
+function renderGuestOrderCard(order){
+  if(!order) return '<div style="padding:24px;color:var(--muted);text-align:center">Заказ не найден</div>';
+  const items = Array.isArray(order.items) ? order.items : [];
+  const delivery = order.delivery || {};
+  return `<div class="ibox bl" style="margin-top:14px">
+    <strong>Заказ #${escHtml(order.id || order.order_id || '—')}</strong><br>
+    Статус: <b>${escHtml(buyerStatusLabel(order.status))}</b><br>
+    Трек: ${escHtml(order.tracking_number || order.tracking || '—')}<br>
+    Получатель: ${escHtml(order.customer_name || order.name || '—')}<br>
+    Телефон: ${escHtml(order.customer_phone || order.phone || '—')}<br>
+    Доставка: ${escHtml(delivery.method || order.delivery_method || '—')}<br>
+    Адрес: ${escHtml(delivery.address || order.delivery_address || '—')}<br>
+    Сумма: ${fmt(Number(order.total || order.total_amount || 0))}<br>
+    Дата: ${escHtml(order.date || order.created_at || '—')}<br>
+    Товары: ${escHtml(buyerItemsLabel(items))}
+  </div>`;
+}
+async function guestTrackOrder(){
+  const orderId = document.getElementById('track-order-id')?.value.trim() || '';
+  const phone = document.getElementById('track-order-phone')?.value.trim() || '';
+  const email = document.getElementById('track-order-email')?.value.trim() || '';
+  if(!orderId){
+    toast('Введите номер заказа', false);
+    return;
+  }
+  if(!phone && !email){
+    toast('Введите телефон или email', false);
+    return;
+  }
+  const params = new URLSearchParams({order_id: orderId});
+  if(phone) params.set('phone', phone);
+  if(email) params.set('email', email);
+  try{
+    const resp = await fetch(`${window.API_BASE}/track/order?${params.toString()}`);
+    if(!resp.ok) throw new Error(`API ${resp.status}`);
+    const data = await resp.json();
+    document.getElementById('lk-profile-summary').innerHTML = `Гостевой трекер: заказ найден`;
+    document.getElementById('lk-orders-count').textContent = '1';
+    document.getElementById('lk-open-count').textContent = ['new','proc'].includes(String(data.status || '').toLowerCase()) ? '1' : '0';
+    document.getElementById('lk-delivery-count').textContent = String(String(data.status || '').toLowerCase() === 'send' ? 1 : 0);
+    document.getElementById('lk-orders-body').innerHTML = `<tr><td colspan="6">${renderGuestOrderCard(data)}</td></tr>`;
+    showPage('account');
+  }catch(err){
+    toast(`Не удалось найти заказ: ${err.message}`, false);
   }
 }
 async function buyerLoginOrRegister(mode='login'){
@@ -429,7 +484,13 @@ function openOrder(){
 }
 function closeMod(){document.getElementById('mod-ov').classList.remove('open');}
 function movClick(e){if(e.target===document.getElementById('mod-ov'))closeMod();}
-function selD(el,cost){document.querySelectorAll('.dopt').forEach(o=>o.classList.remove('sel'));el.classList.add('sel');delCost=cost;updOrds();}
+function selD(el,cost){
+  document.querySelectorAll('.dopt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+  delCost=cost;
+  delMethod=(el.textContent || 'Доставка').replace(/\s+\d+\s*₽/g,'').replace(/\s+/g,' ').trim();
+  updOrds();
+}
 function updOrds(){
   const sub=cart.reduce((s,c)=>s+c.price*c.qty,0);
   document.getElementById('ords').innerHTML=`<div class="ord-s">
@@ -446,6 +507,8 @@ async function placeOrder(){
   const pay = document.getElementById('fpay').value;
   const email = document.getElementById('fem').value.trim();
   const address = document.getElementById('fadr').value.trim();
+  const comment = document.getElementById('fcmt').value.trim();
+  const registerAfter = document.getElementById('freg')?.checked || false;
   const orderDate = new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const payload = {
     order_id: `CF-${Date.now().toString(36).toUpperCase()}`,
@@ -457,14 +520,19 @@ async function placeOrder(){
     customer_email: email,
     payment_method: pay,
     payment_status: 'pending',
+    delivery_cost: delCost,
     items: cart.map(c => ({
       sku: String(c.sku || c.id || ''),
       name: c.name,
       qty: c.qty,
       price: c.price,
     })),
-    delivery_method: 'pickup_or_delivery',
+    delivery_method: delMethod,
     delivery_address: address,
+    comment,
+    is_guest: true,
+    registered_after_order: registerAfter,
+    guest_session_token: ensureGuestSessionToken(),
   };
 
   let saved = null;
@@ -495,6 +563,16 @@ async function placeOrder(){
     src: 'Прямой',
   };
 
+  if(registerAfter){
+    saveBuyerProfile({
+      name: n,
+      phone: normalizeBuyerPhone(ph),
+      email,
+      created_at: new Date().toISOString(),
+      orders_count: 1,
+    });
+  }
+
   orders.unshift(order);
   cart.forEach(c=>{
     const p=P.find(x=>String(x.id)===String(c.id) || String(x.sku||'')===String(c.sku||''));
@@ -518,6 +596,12 @@ async function placeOrder(){
   closeMod();
   document.getElementById('snum').textContent='#'+num;
   document.getElementById('succ-ov').classList.add('open');
+  const postOrderHint = document.getElementById('succ-hint');
+  if(postOrderHint){
+    postOrderHint.textContent = registerAfter
+      ? 'Кабинет создан. Откройте "Личный кабинет", чтобы смотреть историю и статус.'
+      : 'Можете отслеживать заказ по номеру, телефону или создать кабинет позже.';
+  }
   const bel=document.getElementById('b-new');if(bel){const newc=orders.filter(o=>o.status==='new').length;bel.textContent=newc||'';bel.style.display=newc?'':'none';}
 }
 
