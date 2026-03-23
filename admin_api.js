@@ -3,7 +3,7 @@ const legacyRenderAdmin = window.renderAdmin;
 let admRenderSeq = 0;
 admCur = window.admCur || admCur || 'dashboard';
 
-const escHtml = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const escAdminHtml = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const fmtMoney = n => `${Number(n || 0).toLocaleString('ru-RU')} ₽`;
 
 async function apiGet(path) {
@@ -96,16 +96,16 @@ async function renderAdminApi(tab) {
       <div class="adm-table-wrap"><div class="adm-table-head"><h3>Последние заказы</h3><button class="adm-btn sm" onclick="admTab('orders',null)">Все заказы →</button></div>
       <table class="adm-tbl"><thead><tr><th>#</th><th>Клиент</th><th>Сумма</th><th>Статус</th><th>Дата</th></tr></thead><tbody>
       ${ordersList.length ? ordersList.map(o => `<tr>
-        <td class="mono">#${escHtml(o.id || o.number || o.order_id || '—')}</td>
-        <td><div class="bold">${escHtml(o.customer_name || o.name || '—')}</div><div style="font-size:11px;color:var(--muted)">${escHtml(o.phone || '')}</div></td>
+        <td class="mono">#${escAdminHtml(o.id || o.number || o.order_id || '—')}</td>
+        <td><div class="bold">${escAdminHtml(o.customer_name || o.name || '—')}</div><div style="font-size:11px;color:var(--muted)">${escAdminHtml(o.phone || '')}</div></td>
         <td class="bold" style="color:var(--orange2)">${fmtMoney(o.total || o.amount || 0)}</td>
-        <td><span class="stbadge st-${escHtml(String(o.status || 'new').toLowerCase())}">${escHtml(o.status || 'new')}</span></td>
-        <td style="font-size:12px;color:var(--muted)">${escHtml(o.created_at || o.date || '—')}</td>
+        <td><span class="stbadge st-${escAdminHtml(String(o.status || 'new').toLowerCase())}">${escAdminHtml(o.status || 'new')}</span></td>
+        <td style="font-size:12px;color:var(--muted)">${escAdminHtml(o.created_at || o.date || '—')}</td>
       </tr>`).join('') : '<tr><td colspan="5" style="padding:28px;color:var(--muted);text-align:center">Заказов пока нет</td></tr>'}
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>📊 Дашборд <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>📊 Дашборд <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escAdminHtml(err.message)}</div>`;
     }
     return;
   }
@@ -124,20 +124,20 @@ async function renderAdminApi(tab) {
       </div>
       <div class="adm-table-wrap"><table class="adm-tbl"><thead><tr><th>#</th><th>Клиент</th><th>Товары</th><th>Итого</th><th>Статус</th><th>Дата</th></tr></thead><tbody>
       ${rows.length ? rows.map(o => {
-        const items = Array.isArray(o.items) ? o.items.map(i => `${escHtml(i.name || 'Товар')} ×${escHtml(i.qty || 1)}`).join(', ') : escHtml(o.items || '—');
+        const items = Array.isArray(o.items) ? o.items.map(i => `${escAdminHtml(i.name || 'Товар')} ×${escAdminHtml(i.qty || 1)}`).join(', ') : escAdminHtml(o.items || '—');
         return `<tr>
-          <td class="mono">#${escHtml(o.id || o.number || o.order_id || '—')}</td>
-          <td><div class="bold">${escHtml(o.customer_name || o.name || '—')}</div><div style="font-size:11px;color:var(--muted)">${escHtml(o.phone || '')}</div></td>
+          <td class="mono">#${escAdminHtml(o.id || o.number || o.order_id || '—')}</td>
+          <td><div class="bold">${escAdminHtml(o.customer_name || o.name || '—')}</div><div style="font-size:11px;color:var(--muted)">${escAdminHtml(o.phone || '')}</div></td>
           <td style="font-size:12px;color:var(--muted);max-width:260px">${items}</td>
           <td class="bold" style="color:var(--orange2)">${fmtMoney(o.total || o.amount || 0)}</td>
-          <td><span class="stbadge st-${escHtml(String(o.status || 'new').toLowerCase())}">${escHtml(o.status || 'new')}</span></td>
-          <td style="font-size:12px;color:var(--muted)">${escHtml(o.created_at || o.date || '—')}</td>
+          <td><span class="stbadge st-${escAdminHtml(String(o.status || 'new').toLowerCase())}">${escAdminHtml(o.status || 'new')}</span></td>
+          <td style="font-size:12px;color:var(--muted)">${escAdminHtml(o.created_at || o.date || '—')}</td>
         </tr>`;
       }).join('') : '<tr><td colspan="6" style="padding:28px;color:var(--muted);text-align:center">Заказов пока нет</td></tr>'}
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>📋 Заказы <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>📋 Заказы <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escAdminHtml(err.message)}</div>`;
     }
     return;
   }
@@ -189,8 +189,8 @@ async function renderAdminApi(tab) {
       <table class="adm-tbl"><thead><tr><th>Товар</th><th>SKU</th><th>Маркетплейс</th><th>Склад</th><th>Импорт</th><th>Итого</th></tr></thead><tbody>
       ${groupedRows.length ? groupedRows.map(r => `
         <tr>
-          <td><div class="bold" style="font-size:13px">${escHtml(r.name)}</div></td>
-          <td class="mono">${escHtml(r.sku)}</td>
+          <td><div class="bold" style="font-size:13px">${escAdminHtml(r.name)}</div></td>
+          <td class="mono">${escAdminHtml(r.sku)}</td>
           <td><span class="stbadge st-send">${Number(r.marketplace || 0)} шт</span></td>
           <td><span class="stbadge st-done">${Number(r.warehouse || 0)} шт</span></td>
           <td><span class="stbadge st-proc">${Number(r.import || 0)} шт</span></td>
@@ -200,7 +200,7 @@ async function renderAdminApi(tab) {
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>📦 Остатки <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>📦 Остатки <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escAdminHtml(err.message)}</div>`;
     }
     return;
   }
@@ -215,14 +215,14 @@ async function renderAdminApi(tab) {
       <div class="adm-table-wrap"><div class="adm-table-head"><h3>Лог синхронизации</h3><button class="adm-btn sm" onclick="syncNow('Синхронизация')">🔄 Обновить</button></div>
       <table class="adm-tbl"><thead><tr><th>Время</th><th>Событие</th><th>Статус</th></tr></thead><tbody>
       ${rows.length ? rows.map(l => `<tr>
-        <td style="font-size:12px;color:var(--muted);font-family:monospace">${escHtml(l.created_at || l.time || '—')}</td>
-        <td style="font-size:13px">${escHtml(l.message || l.event || l.error_message || '—')}</td>
-        <td><span class="stbadge st-${String(l.status || 'ok').toLowerCase() === 'success' ? 'send' : 'new'}">${escHtml(l.status || 'ok')}</span></td>
+        <td style="font-size:12px;color:var(--muted);font-family:monospace">${escAdminHtml(l.created_at || l.time || '—')}</td>
+        <td style="font-size:13px">${escAdminHtml(l.message || l.event || l.error_message || '—')}</td>
+        <td><span class="stbadge st-${String(l.status || 'ok').toLowerCase() === 'success' ? 'send' : 'new'}">${escAdminHtml(l.status || 'ok')}</span></td>
       </tr>`).join('') : '<tr><td colspan="3" style="padding:28px;color:var(--muted);text-align:center">Лог пуст</td></tr>'}
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>🔄 Синхронизация <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>🔄 Синхронизация <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escAdminHtml(err.message)}</div>`;
     }
     return;
   }
@@ -255,7 +255,7 @@ async function renderAdminApi(tab) {
       </div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>📈 Аналитика <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>📈 Аналитика <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escAdminHtml(err.message)}</div>`;
     }
     return;
   }
@@ -279,18 +279,18 @@ async function renderAdminApi(tab) {
         const cat = p.category || 'fishing';
         const source = sourceGroupLabel(p.source_group || p.source);
         return `<tr>
-          <td><img src="${escHtml(photo || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=80&h=80&fit=crop')}" style="width:44px;height:44px;object-fit:cover;border:1px solid var(--border);border-radius:3px" onerror="this.style.display='none'"></td>
-          <td><div class="bold" style="font-size:13px">${escHtml(p.name || `SKU ${p.sku || p.wb_nm_id || '—'}`)}</div><div style="font-size:11px;color:var(--muted)">${escHtml(p.description || '')}</div></td>
-          <td style="font-size:12px;color:var(--muted)">${escHtml({construction:'Стройка',fishing:'Рыбалка',lure:'Оснастка',gas:'Снаряжение',tent:'Туризм',boat:'Транспорт',other:'Другое'}[cat] || cat)}</td>
+          <td><img src="${escAdminHtml(photo || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=80&h=80&fit=crop')}" style="width:44px;height:44px;object-fit:cover;border:1px solid var(--border);border-radius:3px" onerror="this.style.display='none'"></td>
+          <td><div class="bold" style="font-size:13px">${escAdminHtml(p.name || `SKU ${p.sku || p.wb_nm_id || '—'}`)}</div><div style="font-size:11px;color:var(--muted)">${escAdminHtml(p.description || '')}</div></td>
+          <td style="font-size:12px;color:var(--muted)">${escAdminHtml({construction:'Стройка',fishing:'Рыбалка',lure:'Оснастка',gas:'Снаряжение',tent:'Туризм',boat:'Транспорт',other:'Другое'}[cat] || cat)}</td>
           <td class="bold" style="color:var(--orange2)">${fmtMoney(p.price || 0)}</td>
           <td style="font-weight:700;color:${Number(p.stock || p.quantity || 0) < 20 ? 'var(--red)' : Number(p.stock || p.quantity || 0) < 100 ? 'var(--yellow)' : 'var(--green)'}">${Number(p.stock || p.quantity || 0)}</td>
-          <td><span class="stbadge ${sourceGroupClass(p.source_group || p.source)}">${escHtml(source)}</span></td>
+          <td><span class="stbadge ${sourceGroupClass(p.source_group || p.source)}">${escAdminHtml(source)}</span></td>
         </tr>`;
       }).join('') : '<tr><td colspan="6" style="padding:28px;color:var(--muted);text-align:center">Товаров пока нет</td></tr>'}
       </tbody></table></div>`;
     } catch (err) {
       if (seq !== admRenderSeq) return;
-      el.innerHTML = `<h2>🛍 Каталог <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escHtml(err.message)}</div>`;
+      el.innerHTML = `<h2>🛍 Каталог <span class="sub">сбой загрузки</span></h2><div style="padding:40px;text-align:center;color:var(--red)">Ошибка загрузки данных: ${escAdminHtml(err.message)}</div>`;
     }
     return;
   }
