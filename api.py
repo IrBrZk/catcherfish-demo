@@ -442,6 +442,22 @@ async def upsert_user(
 
 
 async def ensure_users_auth_schema(conn: asyncpg.Connection) -> None:
+    await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            telegram_id BIGINT UNIQUE,
+            login_name VARCHAR(50),
+            email VARCHAR(100) UNIQUE,
+            phone VARCHAR(20),
+            name VARCHAR(100),
+            role VARCHAR(20) DEFAULT 'customer',
+            is_admin BOOLEAN DEFAULT FALSE,
+            password_hash TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
     await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS login_name VARCHAR(50)")
     await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT")
     await conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_login_name_idx ON users(login_name)")
