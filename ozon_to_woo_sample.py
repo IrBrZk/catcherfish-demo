@@ -151,14 +151,26 @@ def fetch_first_products(limit: int) -> List[Dict[str, Any]]:
         )
     selected = offer_ids[:limit]
     data = try_fetch_detail(
-        "/v2/product/info/list",
+        "/v3/product/info/list",
         [
             {"offer_id": selected},
             {"filter": {"offer_id": selected}},
             {"product_id": selected},
             {"filter": {"product_id": selected}},
+            {"sku": selected},
         ],
     )
+    if not extract_items(data):
+        data = try_fetch_detail(
+            "/v2/product/info/list",
+            [
+                {"offer_id": selected},
+                {"filter": {"offer_id": selected}},
+                {"product_id": selected},
+                {"filter": {"product_id": selected}},
+                {"sku": selected},
+            ],
+        )
     items = extract_items(data)
     if not items:
         raise RuntimeError("Ozon API returned no products for the provided offer IDs")
@@ -194,13 +206,24 @@ def main() -> int:
     if product_ids:
         try:
             detail_data = try_fetch_detail(
-                "/v2/product/info/list",
+                "/v3/product/info/list",
                 [
                     {"product_id": product_ids},
                     {"filter": {"product_id": product_ids}},
                     {"offer_id": product_ids},
+                    {"sku": product_ids},
                 ],
             )
+            if not extract_items(detail_data):
+                detail_data = try_fetch_detail(
+                    "/v2/product/info/list",
+                    [
+                        {"product_id": product_ids},
+                        {"filter": {"product_id": product_ids}},
+                        {"offer_id": product_ids},
+                        {"sku": product_ids},
+                    ],
+                )
             for item in extract_items(detail_data):
                 key = product_id_value(item)
                 if key:
