@@ -13,6 +13,7 @@ Optional env vars:
   OZON_API_BASE=https://api-seller.ozon.ru
   OZON_SAMPLE_LIMIT=5
   OZON_OUT_CSV=woo_ozon_sample.csv
+  OZON_OFFER_IDS=offer1,offer2,offer3,offer4,offer5
 """
 
 from __future__ import annotations
@@ -142,17 +143,25 @@ def product_id_value(item: Dict[str, Any]) -> str:
 
 
 def fetch_first_products(limit: int) -> List[Dict[str, Any]]:
-    data = post_json(
-        "/v2/product/list",
-        {
-            "filter": {"visibility": "ALL"},
-            "last_id": "",
-            "limit": max(limit, 5),
-        },
+    offer_ids = [x.strip() for x in env("OZON_OFFER_IDS", "").split(",") if x.strip()]
+    if not offer_ids:
+        raise RuntimeError(
+            "OZON_OFFER_IDS is not set. Ozon Seller API exposes product info methods by product identifiers; "
+            "set OZON_OFFER_IDS=offer1,offer2,... for the 5 products you want to export."
+        )
+    selected = offer_ids[:limit]
+    data = try_fetch_detail(
+        "/v2/product/info/list",
+        [
+            {"offer_id": selected},
+            {"filter": {"offer_id": selected}},
+            {"product_id": selected},
+            {"filter": {"product_id": selected}},
+        ],
     )
     items = extract_items(data)
     if not items:
-        raise RuntimeError("Ozon API returned no products")
+        raise RuntimeError("Ozon API returned no products for the provided offer IDs")
     return items[:limit]
 
 
@@ -171,6 +180,10 @@ def try_fetch_detail(path: str, payloads: List[Dict[str, Any]]) -> Dict[str, Any
 def main() -> int:
     limit = int(env("OZON_SAMPLE_LIMIT", "5") or "5")
     out_csv = Path(env("OZON_OUT_CSV", str(BASE_DIR / "woo_ozon_sample.csv")))
+
+    conn_test = post_json("/v1/warehouse/list", {})
+    warehouse_count = len(extract_items(conn_test))
+    print(f"Ozon API connection OK. Warehouses found: {warehouse_count}")
 
     products = fetch_first_products(limit)
     product_ids = [product_id_value(item) for item in products if product_id_value(item)]
