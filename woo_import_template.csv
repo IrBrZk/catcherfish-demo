@@ -1,0 +1,6 @@
+Type,SKU,Name,Published,Is featured?,Catalog visibility,Short description,Description,Regular price,Sale price,Stock,In stock?,Categories,Images
+simple,CF-001,Товар 1,1,0,visible,Короткое описание товара 1,Полное описание товара 1,0,0,0,0,Категория 1,
+simple,CF-002,Товар 2,1,0,visible,Короткое описание товара 2,Полное описание товара 2,0,0,0,0,Категория 2,
+simple,CF-003,Товар 3,1,0,visible,Короткое описание товара 3,Полное описание товара 3,0,0,0,0,Категория 3,
+simple,CF-004,Товар 4,1,0,visible,Короткое описание товара 4,Полное описание товара 4,0,0,0,0,Категория 4,
+simple,CF-005,Товар 5,1,0,visible,Короткое описание товара 5,Полное описание товара 5,0,0,0,0,Категория 5,

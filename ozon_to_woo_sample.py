@@ -13,7 +13,6 @@ Optional env vars:
   OZON_API_BASE=https://api-seller.ozon.ru
   OZON_SAMPLE_LIMIT=5
   OZON_OUT_CSV=woo_ozon_sample.csv
-  OZON_OFFER_IDS=offer1,offer2,offer3,offer4,offer5
 """
 
 from __future__ import annotations
@@ -143,37 +142,15 @@ def product_id_value(item: Dict[str, Any]) -> str:
 
 
 def fetch_first_products(limit: int) -> List[Dict[str, Any]]:
-    offer_ids = [x.strip() for x in env("OZON_OFFER_IDS", "").split(",") if x.strip()]
-    if not offer_ids:
-        raise RuntimeError(
-            "OZON_OFFER_IDS is not set. Ozon Seller API exposes product info methods by product identifiers; "
-            "set OZON_OFFER_IDS=offer1,offer2,... for the 5 products you want to export."
-        )
-    selected = offer_ids[:limit]
-    data = try_fetch_detail(
-        "/v3/product/info/list",
-        [
-            {"offer_id": selected},
-            {"filter": {"offer_id": selected}},
-            {"product_id": selected},
-            {"filter": {"product_id": selected}},
-            {"sku": selected},
-        ],
-    )
-    if not extract_items(data):
-        data = try_fetch_detail(
-            "/v2/product/info/list",
-            [
-                {"offer_id": selected},
-                {"filter": {"offer_id": selected}},
-                {"product_id": selected},
-                {"filter": {"product_id": selected}},
-                {"sku": selected},
-            ],
-        )
+    payload = {
+        "filter": {"visibility": "ALL"},
+        "last_id": "",
+        "limit": max(limit, 5),
+    }
+    data = post_json("/v3/product/list", payload)
     items = extract_items(data)
     if not items:
-        raise RuntimeError("Ozon API returned no products for the provided offer IDs")
+        raise RuntimeError("Ozon API returned no products")
     return items[:limit]
 
 
@@ -199,61 +176,12 @@ def main() -> int:
 
     products = fetch_first_products(limit)
     product_ids = [product_id_value(item) for item in products if product_id_value(item)]
-
-    details: Dict[str, Dict[str, Any]] = {}
-    stocks: Dict[str, int] = {}
-
-    if product_ids:
-        try:
-            detail_data = try_fetch_detail(
-                "/v3/product/info/list",
-                [
-                    {"product_id": product_ids},
-                    {"filter": {"product_id": product_ids}},
-                    {"offer_id": product_ids},
-                    {"sku": product_ids},
-                ],
-            )
-            if not extract_items(detail_data):
-                detail_data = try_fetch_detail(
-                    "/v2/product/info/list",
-                    [
-                        {"product_id": product_ids},
-                        {"filter": {"product_id": product_ids}},
-                        {"offer_id": product_ids},
-                        {"sku": product_ids},
-                    ],
-                )
-            for item in extract_items(detail_data):
-                key = product_id_value(item)
-                if key:
-                    details[key] = item
-        except Exception:
-            pass
-
-        try:
-            stock_data = try_fetch_detail(
-                "/v1/product/info/stocks",
-                [
-                    {"product_id": product_ids},
-                    {"filter": {"product_id": product_ids}},
-                    {"sku": product_ids},
-                ],
-            )
-            for item in extract_items(stock_data):
-                key = product_id_value(item)
-                if key:
-                    stocks[key] = guess_stock(item)
-        except Exception:
-            pass
-
     rows: List[Dict[str, Any]] = []
     for item in products:
         key = product_id_value(item)
-        merged = {**item, **details.get(key, {})}
-        stock = stocks.get(key, guess_stock(merged))
-        name = str(first_of(merged, ("name", "title", "offer_id", "product_name"), f"Ozon {key}"))
-        sku = str(first_of(merged, ("offer_id", "sku", "product_id", "id"), key))
+        stock = guess_stock(item)
+        name = str(first_of(item, ("name", "title", "offer_id", "product_name"), f"Ozon {key}"))
+        sku = str(first_of(item, ("offer_id", "sku", "product_id", "id"), key))
         rows.append(
             {
                 "Type": "simple",
@@ -262,14 +190,14 @@ def main() -> int:
                 "Published": 1,
                 "Is featured?": 0,
                 "Catalog visibility": "visible",
-                "Short description": guess_description(merged)[:255],
-                "Description": guess_description(merged),
-                "Regular price": guess_price(merged),
+                "Short description": guess_description(item)[:255],
+                "Description": guess_description(item),
+                "Regular price": guess_price(item),
                 "Sale price": "",
                 "Stock": stock,
                 "In stock?": 1 if stock > 0 else 0,
-                "Categories": guess_category(merged),
-                "Images": flatten_images(merged),
+                "Categories": guess_category(item),
+                "Images": flatten_images(item),
             }
         )
 
